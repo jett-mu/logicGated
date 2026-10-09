@@ -2,7 +2,7 @@ import { Circuit, DEFS, GROUPS, defaultState, dims, pinPos } from './model.js';
 import { simulate } from './sim.js';
 import { el, renderCircuit, drawComponent, SVG_CSS } from './render.js';
 import { autosave, restore, saveFile, loadFile } from './storage.js';
-import { exportPNG, exportSVG } from './export.js';
+import { circuitSchematic, exportCircuitPNG, exportCircuitSVG, exportPNG, exportSVG } from './export.js';
 import { EXAMPLES } from './examples.js';
 
 const $ = (s) => document.querySelector(s);
@@ -400,6 +400,25 @@ $('#btn-redo').onclick = () => stepHistory(1);
 $('#btn-fit').onclick = () => { fit(); draw(); };
 $('#btn-png').onclick = () => exportPNG(circ, out);
 $('#btn-svg').onclick = () => exportSVG(circ, out);
+
+// ---- transistor-level circuit export -------------------------------------
+const dlg = $('#circuit-dlg'), cTech = $('#c-tech'), cZoom = $('#c-zoom'), cPrev = $('#c-preview');
+function renderCircuitDialog() {
+  const r = circuitSchematic(circ, cTech.value);
+  const empty = r.nl.stages.length === 0;
+  cPrev.className = cZoom.value === 'fit' ? 'fit' : '';
+  if (empty) cPrev.innerHTML = '<div class="empty">Nothing to expand yet — add some logic gates and wire them up.</div>';
+  else cPrev.innerHTML = r.svg;
+  $('#c-stats').textContent = empty ? '' : `${r.transistors} transistors · ${r.stages} stages`;
+  $('#c-svg').disabled = $('#c-png').disabled = empty;
+}
+$('#btn-circuit').onclick = () => { renderCircuitDialog(); dlg.showModal(); };
+cTech.addEventListener('change', renderCircuitDialog);
+cZoom.addEventListener('change', renderCircuitDialog);
+$('#c-close').onclick = () => dlg.close();
+dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+$('#c-svg').onclick = () => exportCircuitSVG(circ, cTech.value);
+$('#c-png').onclick = () => exportCircuitPNG(circ, cTech.value);
 
 // ---- clock ticks --------------------------------------------------------
 setInterval(() => {

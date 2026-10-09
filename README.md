@@ -18,3 +18,8 @@ python3 -m http.server 8000   # then open http://localhost:8000
 1. Push this repo to GitHub.
 2. Settings → Pages → Source: *Deploy from a branch* → `main` / `(root)`.
 3. Visit `https://<user>.github.io/<repo>/`.
+
+## Circuit export
+**Circuit…** expands every gate into transistors and draws a real schematic (straight orthogonal wires,
+hop-over arcs where wires cross, dots at junctions). Pick **CMOS MOSFET** or **BJT NPN (RTL)**, then download SVG or PNG.
+XOR/XNOR are built from four NAND stages. Open-ended wires are ignored.

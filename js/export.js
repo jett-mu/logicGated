@@ -1,6 +1,8 @@
 // Professional schematic export: clean white sheet, border, title block.
 import { dims } from './model.js';
 import { el, renderCircuit, SVG_CSS } from './render.js';
+import { buildNetlist } from './netlist.js';
+import { renderSchematic } from './schematic.js';
 
 const PRINT_VARS = '--ink:#111827;--body:#ffffff;--off:#9ca3af;--on:#15803d;--dim:#6b7280;--accent:#2563eb;--bulbOff:#ffffff;--bulbOn:#facc15;';
 
@@ -51,20 +53,41 @@ export function exportSVG(circ, out) {
   download(new Blob([svg], { type: 'image/svg+xml' }), 'gatewright-schematic.svg');
 }
 
-export function exportPNG(circ, out, scale = 2) {
-  const { svg, width, height } = buildSchematic(circ, out);
+function rasterize(svg, width, height, name, scale = 2) {
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   const img = new Image();
   img.onload = () => {
     const cv = document.createElement('canvas');
-    cv.width = Math.round(width * scale);
-    cv.height = Math.round(height * scale);
+    // Browsers cap canvas size; keep huge schematics inside ~16k px.
+    const k = Math.min(scale, 16000 / Math.max(width, height));
+    cv.width = Math.round(width * k);
+    cv.height = Math.round(height * k);
     const ctx = cv.getContext('2d');
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(img, 0, 0, cv.width, cv.height);
     URL.revokeObjectURL(url);
-    cv.toBlob((b) => download(b, 'gatewright-schematic.png'), 'image/png');
+    cv.toBlob((b) => download(b, name), 'image/png');
   };
   img.src = url;
+}
+
+export function exportPNG(circ, out, scale = 2) {
+  const { svg, width, height } = buildSchematic(circ, out);
+  rasterize(svg, width, height, 'gatewright-schematic.png', scale);
+}
+
+// ---- transistor-level circuit export ------------------------------------
+export function circuitSchematic(circ, tech) {
+  const nl = buildNetlist(circ);
+  return { nl, ...renderSchematic(nl, tech) };
+}
+
+export function exportCircuitSVG(circ, tech) {
+  download(new Blob([circuitSchematic(circ, tech).svg], { type: 'image/svg+xml' }), `gatewright-circuit-${tech}.svg`);
+}
+
+export function exportCircuitPNG(circ, tech) {
+  const { svg, width, height } = circuitSchematic(circ, tech);
+  rasterize(svg, width, height, `gatewright-circuit-${tech}.png`, 2);
 }

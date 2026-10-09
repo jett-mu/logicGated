@@ -33,3 +33,16 @@ kbd { background: #16233d; border: 1px solid var(--line); border-radius: 4px; pa
 #inspector h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
 #inspector label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0; font-size: 12px; color: var(--muted); }
 #inspector input, #inspector select { width: 84px; padding: 3px 6px; font-size: 12px; }
+#circuit-dlg { width: min(1200px, 94vw); height: 88vh; padding: 0; border: 1px solid var(--accent); border-radius: 10px; background: var(--panel); color: var(--text); }
+#circuit-dlg[open] { display: flex; flex-direction: column; }
+#circuit-dlg::backdrop { background: rgba(3, 7, 18, .7); }
+.dlg-head { display: flex; align-items: baseline; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.dlg-head span { flex: 1; color: var(--muted); font-size: 12px; }
+.dlg-bar { display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.dlg-bar label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.dlg-bar .grow { flex: 1; }
+#c-stats { color: var(--muted); font-size: 12px; }
+#c-preview { flex: 1; overflow: auto; background: #fff; padding: 8px; }
+#c-preview svg { display: block; background: #fff; }
+#c-preview.fit svg { width: 100%; height: auto; }
+#c-preview .empty { color: #4b5563; padding: 40px; text-align: center; font-size: 15px; }

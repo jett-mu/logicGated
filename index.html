@@ -23,6 +23,7 @@
       <span class="sep"></span>
       <button id="btn-png" title="Export schematic as PNG">PNG</button>
       <button id="btn-svg" title="Export schematic as SVG">SVG</button>
+      <button id="btn-circuit" title="Transistor-level schematic (CMOS / BJT)">Circuit…</button>
       <input id="file" type="file" accept=".json,application/json" hidden>
     </div>
   </header>
@@ -43,6 +44,22 @@
       <footer>Drag from a pin to wire · click switches &amp; keys · <kbd>Del</kbd> or right-click removes · <kbd>Ctrl/⌘ Z</kbd> undoes · scroll to zoom · drag empty space to pan</footer>
     </div>
   </main>
+  <dialog id="circuit-dlg">
+    <div class="dlg-head"><b>Circuit export</b><span>Every gate expanded into real transistors</span><button id="c-close" title="Close">&#10005;</button></div>
+    <div class="dlg-bar">
+      <label>Technology
+        <select id="c-tech"><option value="cmos">CMOS MOSFET</option><option value="bjt">BJT NPN (RTL)</option></select>
+      </label>
+      <label>View
+        <select id="c-zoom"><option value="fit">Fit to window</option><option value="full">Actual size</option></select>
+      </label>
+      <span id="c-stats"></span>
+      <span class="grow"></span>
+      <button id="c-svg">Download SVG</button>
+      <button id="c-png">Download PNG</button>
+    </div>
+    <div id="c-preview"></div>
+  </dialog>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

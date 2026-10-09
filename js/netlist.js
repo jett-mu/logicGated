@@ -35,20 +35,20 @@ export function buildNetlist(circ) {
     }
   }
 
-  // Outputs (bulbs, display bits) and the primary inputs that feed anything.
+  // Terminals. A part that is wired shows only its wired pins; a part with
+  // nothing connected still appears (so gate-less circuits export too).
+  const pick = (pins) => (pins.some((p) => p.used) ? pins.filter((p) => p.used) : pins);
   const outputs = [];
   let led = 0, disp = 0;
   for (const c of circ.components) {
     if (c.type === 'bulb') {
-      const n = inNet(c, 0);
       led++;
-      if (n !== '0') outputs.push({ net: n, label: `LED${led}` });
+      outputs.push(...pick([{ net: inNet(c, 0), label: `LED${led}`, used: inNet(c, 0) !== '0' }]));
     } else if (c.type === 'display') {
       disp++;
-      for (let i = 0; i < c.state.bits; i++) {
-        const n = inNet(c, i);
-        if (n !== '0') outputs.push({ net: n, label: `D${disp}[${c.state.bits - 1 - i}]` });
-      }
+      outputs.push(...pick(Array.from({ length: c.state.bits }, (_, i) => ({
+        net: inNet(c, i), label: `D${disp}[${c.state.bits - 1 - i}]`, used: inNet(c, i) !== '0',
+      }))));
     }
   }
   const used = new Set([...stages.flatMap((s) => s.ins), ...outputs.map((o) => o.net)]);
@@ -59,13 +59,13 @@ export function buildNetlist(circ) {
     const base = PRIMARY[c.type];
     if (base) {
       counts[base] = (counts[base] ?? 0) + 1;
-      if (used.has(`${c.id}:0`)) inputs.push({ net: `${c.id}:0`, label: `${base}${counts[base]}` });
+      inputs.push(...pick([{ net: `${c.id}:0`, label: `${base}${counts[base]}`, used: used.has(`${c.id}:0`) }]));
     } else if (c.type === 'numpad') {
       const name = String.fromCharCode(65 + pad++);
-      for (let p = 0; p < c.state.bits; p++) {
-        const k = `${c.id}:${p}`;
-        if (used.has(k)) inputs.push({ net: k, label: c.state.bits > 1 ? `${name}[${c.state.bits - 1 - p}]` : name });
-      }
+      const bits = c.state.bits;
+      inputs.push(...pick(Array.from({ length: bits }, (_, p) => ({
+        net: `${c.id}:${p}`, label: bits > 1 ? `${name}[${bits - 1 - p}]` : name, used: used.has(`${c.id}:${p}`),
+      }))));
     }
   }
   return { stages, inputs, outputs };

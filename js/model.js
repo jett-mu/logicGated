@@ -18,7 +18,7 @@ export const DEFS = {
 export const defaultState = (type) => ({
   switch: () => ({ on: false }),
   button: () => ({ down: false }),
-  clock: () => ({ on: false, running: true }),
+  clock: () => ({ on: false, running: true, hz: 1 }),
   numpad: () => ({ value: 0, bits: 4, base: 'dec', min: 0, max: 15 }),
   display: () => ({ bits: 4, base: 'hex' }),
 }[type]?.() ?? {});
@@ -87,7 +87,7 @@ export class Circuit {
       from: w.from.c === c.id ? pinPos(c, 'out', w.from.p) : null,
       to: w.to.c === c.id ? pinPos(c, 'in', w.to.p) : null,
     }));
-    const s = c.state, oldTop = 2 ** (s.bits ?? 0) - 1, wasFull = s.max === oldTop;
+    const s = c.state, ob = s.bits, oldTop = 2 ** (s.bits ?? 0) - 1, wasFull = s.max === oldTop;
     Object.assign(s, patch);
     const int = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(+v) || 0));
     if ('bits' in s) s.bits = int(s.bits, 1, 8);
@@ -97,6 +97,19 @@ export class Circuit {
       s.max = int(s.max, 0, top);
       s.min = int(s.min, 0, s.max);
       s.value = int(s.value, s.min, s.max);
+    }
+    if (c.type === 'clock') s.hz = Math.min(30, Math.max(0.05, Math.round((+s.hz || 1) * 1000) / 1000));
+    // Pin 0 is the most significant bit, so growing/shrinking happens at the TOP:
+    // each existing bit keeps its wire, i.e. pins shift down by the change.
+    if (ob !== undefined && s.bits !== ob && (c.type === 'numpad' || c.type === 'display')) {
+      const delta = s.bits - ob;
+      for (const { w, from, to } of held) {
+        const end = c.type === 'numpad' ? (from && w.from) : (to && w.to);
+        if (!end) continue;
+        const np = end.p + delta;
+        if (np < 0) { if (c.type === 'numpad') w.from = from; else w.to = to; } // bit removed -> open end
+        else end.p = np;
+      }
     }
     const d = dims(c);
     for (const { w, from, to } of held) {

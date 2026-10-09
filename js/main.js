@@ -31,7 +31,7 @@ function tempWire() {
 
 function draw() {
   world.replaceChildren();
-  renderCircuit(world, circ, out, { interactive: true, selected: sel, temp: tempWire() });
+  renderCircuit(world, circ, out, { interactive: true, selected: sel, temp: tempWire(), hoverWire });
   world.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`);
   const s = 20 * view.k;
   grid.setAttribute('width', s); grid.setAttribute('height', s);
@@ -44,7 +44,7 @@ function draw() {
 // (parts, positions, wires) changes. Switch/key states don't create entries.
 const hist = [];
 let hi = -1;
-const structKey = () => JSON.stringify([circ.components.map((c) => [c.id, c.type, c.x, c.y, c.state.bits, c.state.base, c.state.min, c.state.max]), circ.wires]);
+const structKey = () => JSON.stringify([circ.components.map((c) => [c.id, c.type, c.x, c.y, c.state.bits, c.state.base, c.state.min, c.state.max, c.state.hz]), circ.wires]);
 
 function record() {
   const key = structKey();
@@ -70,13 +70,14 @@ function stepHistory(dir) {
   sel = null;
   inspKey = undefined;
   refresh(false);
+  syncClockPhases();
   autosave(circ);
 }
 
 function refresh(save = true) {
   out = simulate(circ, out);
   draw();
-  if (save) { record(); autosave(circ); }
+  if (save) { record(); syncClockPhases(); autosave(circ); }
 }
 
 function fit() {
@@ -87,6 +88,45 @@ function fit() {
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   const k = Math.min(1.5, Math.max(0.3, Math.min((r.width - 120) / (x1 - x0), (r.height - 120) / (y1 - y0))));
   view = { k, x: (r.width - (x1 - x0) * k) / 2 - x0 * k, y: (r.height - (y1 - y0) * k) / 2 - y0 * k };
+}
+
+// ---- drop a part onto a wire to splice it in ------------------------------
+let hoverWire = null;
+function endPos(e, side) {
+  if (e.c === undefined) return e;
+  const c = circ.get(e.c);
+  return c ? pinPos(c, side, e.p) : null;
+}
+
+// The wire passing through part `c` (closest to its centre), if it can be spliced.
+function wireUnder(c) {
+  const d = dims(c);
+  if (!d.ins || !d.outs) return null;
+  if (circ.wires.some((w) => w.to.c === c.id && w.to.p === 0)) return null; // input 0 already wired
+  const x0 = c.x, y0 = c.y, x1 = c.x + d.w, y1 = c.y + d.h, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  let best = null, bestD = Infinity;
+  for (const w of circ.wires) {
+    if (w.from.c === c.id || w.to.c === c.id) continue;
+    const a = endPos(w.from, 'out'), b = endPos(w.to, 'in');
+    if (!a || !b) continue;
+    const dx = Math.max(40, Math.abs(b.x - a.x) / 2);
+    let near = Infinity;
+    for (let i = 0; i <= 48; i++) { // sample the same bezier the renderer draws
+      const t = i / 48, u = 1 - t;
+      const px = u * u * u * a.x + 3 * u * u * t * (a.x + dx) + 3 * u * t * t * (b.x - dx) + t * t * t * b.x;
+      const py = u * u * u * a.y + 3 * u * u * t * a.y + 3 * u * t * t * b.y + t * t * t * b.y;
+      if (px >= x0 && px <= x1 && py >= y0 && py <= y1) near = Math.min(near, Math.hypot(px - cx, py - cy));
+    }
+    if (near < bestD) { bestD = near; best = w; }
+  }
+  return best;
+}
+
+// A -> B becomes A -> part.in[0], part.out[0] -> B
+function spliceInto(c, w) {
+  circ.removeWire(w.id);
+  circ.connect(w.from, { c: c.id, p: 0 });
+  circ.connect({ c: c.id, p: 0 }, w.to);
 }
 
 // ---- canvas interaction -------------------------------------------------
@@ -167,6 +207,8 @@ function onMove(e) {
   if (drag.type === 'move') {
     const p = toWorld(e);
     drag.c.x = snap(p.x - drag.dx); drag.c.y = snap(p.y - drag.dy);
+    drag.moved = true;
+    hoverWire = wireUnder(drag.c)?.id ?? null;
     draw();
   } else if (drag.type === 'pan') {
     view.x = drag.vx + e.clientX - drag.sx; view.y = drag.vy + e.clientY - drag.sy;
@@ -206,6 +248,8 @@ function pinAt(e, side) {
 function onUp(e) {
   window.removeEventListener('pointermove', onMove);
   const d = drag; drag = null;
+  hoverWire = null;
+  if (d?.type === 'move' && d.moved) { const w = wireUnder(d.c); if (w) spliceInto(d.c, w); }
   if (d?.type === 'press') d.c.state.down = false;
   if (d?.type === 'wire') {
     const target = pinAt(e, d.side === 'out' ? 'in' : 'out');
@@ -287,7 +331,7 @@ for (const group of GROUPS) {
   const pv = el('svg', { viewBox: '-14 -18 108 50', class: 'pv' });
   pv.append(el('style')); pv.firstChild.textContent = SVG_CSS;
   pv.append(el('path', { class: 'wire', d: 'M0,10 C30,10 50,10 80,10' }));
-  pv.append(el('circle', { class: 'endpt', cx: 0, cy: 10, r: 5 }), el('circle', { class: 'endpt', cx: 80, cy: 10, r: 5 }));
+  pv.append(el('rect', { class: 'endpt', x: -4, y: 6, width: 8, height: 8 }), el('rect', { class: 'endpt', x: 76, y: 6, width: 8, height: 8 }));
   item.append(pv);
   item.insertAdjacentHTML('beforeend', '<span>Wire</span>');
   const row = document.createElement('div');
@@ -309,10 +353,17 @@ palette.addEventListener('pointerdown', (e) => {
   let moved = false;
   const place = (ev) => { ghost.style.left = `${ev.clientX}px`; ghost.style.top = `${ev.clientY}px`; };
   place(e);
-  const move = (ev) => { moved = true; place(ev); };
+  const move = (ev) => {
+    moved = true; place(ev);
+    const p = toWorld(ev);
+    const probe = { id: -1, type, x: snap(p.x - def.w / 2), y: snap(p.y - def.h / 2), state: defaultState(type) };
+    hoverWire = type === 'wire' ? null : wireUnder(probe)?.id ?? null;
+    draw();
+  };
   const up = (ev) => {
     window.removeEventListener('pointermove', move);
     ghost.remove();
+    hoverWire = null;
     const r = svg.getBoundingClientRect();
     let x, y;
     const inside = ev.clientX > r.left && ev.clientX < r.right && ev.clientY > r.top && ev.clientY < r.bottom;
@@ -325,42 +376,62 @@ palette.addEventListener('pointerdown', (e) => {
     if (type === 'wire') {
       circ.connect({ x: snap(x), y: snap(y) }, { x: snap(x) + 80, y: snap(y) });
       sel = { kind: 'w', id: circ.wires.at(-1).id };
-    } else sel = { kind: 'c', id: circ.add(type, snap(x), snap(y)).id };
+    } else {
+      const c = circ.add(type, snap(x), snap(y));
+      sel = { kind: 'c', id: c.id };
+      const w = wireUnder(c);
+      if (w) spliceInto(c, w);
+    }
+    hoverWire = null;
     refresh();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up, { once: true });
 });
 
-// ---- inspector (number pad / display settings) ---------------------------
+// ---- inspector (settings for number pad / display / clock) --------------
 const insp = $('#inspector');
-let inspKey = null, inspFields = null;
+let inspKey = null, inspFields = null, inspPreset = null;
+const CLOCK_PRESETS = [0.1, 0.25, 0.5, 1, 2, 4, 5, 8, 10, 16, 20, 30];
+const INSPECTED = { numpad: 'Number pad', display: 'Display', clock: 'Clock' };
 
 function updateInspector() {
   const c = sel?.kind === 'c' ? circ.get(sel.id) : null;
-  const key = c && (c.type === 'numpad' || c.type === 'display') ? c.id : null;
+  const key = c && INSPECTED[c.type] ? c.id : null;
   if (key !== inspKey) {
     inspKey = key;
     insp.replaceChildren();
     insp.hidden = key === null;
-    inspFields = null;
+    inspFields = inspPreset = null;
     if (key === null) return;
     const field = (label, input) => {
       const l = document.createElement('label');
-      l.append(Object.assign(document.createElement('span'), { textContent: label }), input);
+      l.append(Object.assign(document.createElement('span'), { className: 'label', textContent: label }), input);
       insp.append(l);
       return input;
     };
-    const num = (min, max) => Object.assign(document.createElement('input'), { type: 'number', min, max, step: 1 });
-    const base = document.createElement('select');
-    for (const [v, t] of [['bin', 'Binary'], ['dec', 'Decimal'], ['hex', 'Hex']]) base.append(new Option(t, v));
-    insp.append(Object.assign(document.createElement('h3'), { textContent: c.type === 'numpad' ? 'Number pad' : 'Display' }));
-    inspFields = { base: field('Format', base), bits: field('Bits', num(1, 8)) };
-    if (c.type === 'numpad') { inspFields.min = field('Min', num(0, 255)); inspFields.max = field('Max', num(0, 255)); }
+    const num = (min, max, step = 1) => Object.assign(document.createElement('input'), { type: 'number', min, max, step, className: 'input' });
+    insp.append(Object.assign(document.createElement('h3'), { className: 'label', textContent: INSPECTED[c.type] }));
+    if (c.type === 'clock') {
+      const preset = Object.assign(document.createElement('select'), { className: 'select' });
+      for (const hz of CLOCK_PRESETS) preset.append(new Option(`${hz} Hz`, hz));
+      preset.append(new Option('Custom', 'custom'));
+      inspPreset = field('Speed', preset);
+      inspFields = { hz: field('Hz', num(0.05, 30, 'any')) };
+      preset.addEventListener('change', () => {
+        if (preset.value === 'custom') return;
+        circ.configure(circ.get(key), { hz: +preset.value });
+        refresh();
+      });
+    } else {
+      const base = Object.assign(document.createElement('select'), { className: 'select' });
+      for (const [v, t] of [['bin', 'Binary'], ['dec', 'Decimal'], ['hex', 'Hex']]) base.append(new Option(t, v));
+      inspFields = { base: field('Format', base), bits: field('Bits', num(1, 8)) };
+      if (c.type === 'numpad') { inspFields.min = field('Min', num(0, 255)); inspFields.max = field('Max', num(0, 255)); }
+    }
     for (const [k, input] of Object.entries(inspFields)) {
       input.addEventListener('change', () => {
-        const part = circ.get(key);
-        circ.configure(part, { [k]: k === 'base' ? input.value : +input.value });
+        circ.configure(circ.get(key), { [k]: k === 'base' ? input.value : +input.value });
         refresh();
       });
     }
@@ -368,13 +439,16 @@ function updateInspector() {
   if (inspFields) {
     const s = circ.get(inspKey).state;
     for (const [k, input] of Object.entries(inspFields)) if (document.activeElement !== input) input.value = s[k];
+    if (inspPreset) inspPreset.value = CLOCK_PRESETS.includes(s.hz) ? s.hz : 'custom';
   }
 }
 
 // ---- toolbar ------------------------------------------------------------
 function loadExample(name) {
-  circ.clear(); out = {}; sel = null;
+  circ.clear(); out = {}; sel = null; clockNext.clear();
   EXAMPLES[name](circ);
+  // Examples always start from a known, shared point: every clock low, phase 0.
+  for (const c of circ.components) if (c.type === 'clock') { c.state.on = false; c.state.phase = 0; }
   fit(); refresh();
 }
 
@@ -386,13 +460,13 @@ $('#btn-new').onclick = () => {
   if (circ.components.length && !confirm('Clear the whole workspace?')) return;
   circ.clear(); out = {}; sel = null; refresh();
 };
-$('#btn-save').onclick = () => saveFile(circ);
+$('#btn-save').onclick = () => { syncClockPhases(); saveFile(circ); };
 $('#btn-open').onclick = () => $('#file').click();
 $('#file').addEventListener('change', async (e) => {
   const f = e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  try { out = {}; await loadFile(circ, f); sel = null; fit(); refresh(); }
+  try { out = {}; await loadFile(circ, f); clockNext.clear(); sel = null; fit(); refresh(); }
   catch (err) { alert(`Could not open file: ${err.message}`); }
 });
 $('#btn-undo').onclick = () => stepHistory(-1);
@@ -405,9 +479,9 @@ $('#btn-svg').onclick = () => exportSVG(circ, out);
 const dlg = $('#circuit-dlg'), cTech = $('#c-tech'), cZoom = $('#c-zoom'), cPrev = $('#c-preview');
 function renderCircuitDialog() {
   const r = circuitSchematic(circ, cTech.value);
-  const empty = r.nl.stages.length === 0;
+  const empty = !r.nl.stages.length && !r.nl.inputs.length && !r.nl.outputs.length;
   cPrev.className = cZoom.value === 'fit' ? 'fit' : '';
-  if (empty) cPrev.innerHTML = '<div class="empty">Nothing to expand yet — add some logic gates and wire them up.</div>';
+  if (empty) cPrev.innerHTML = '<div class="empty">Nothing to draw yet — add some parts to the canvas.</div>';
   else cPrev.innerHTML = r.svg;
   $('#c-stats').textContent = empty ? '' : `${r.transistors} transistors · ${r.stages} stages`;
   $('#c-svg').disabled = $('#c-png').disabled = empty;
@@ -421,11 +495,43 @@ $('#c-svg').onclick = () => exportCircuitSVG(circ, cTech.value);
 $('#c-png').onclick = () => exportCircuitPNG(circ, cTech.value);
 
 // ---- clock ticks --------------------------------------------------------
+// Each clock keeps a phase in [0,2): 0..1 = low half, 1..2 = high half. Level
+// is derived from elapsed time (no drift, clocks stay aligned). The phase is
+// written into the saved state, so reopening a project resumes every clock at
+// the same relative position, i.e. still in sync.
+const clockNext = new Map(); // part id -> {t0, p, hz}
+
+function clockPhase(c, now = performance.now()) {
+  const ph = clockNext.get(c.id);
+  if (ph) return (ph.p + (now - ph.t0) / (500 / ph.hz)) % 2;
+  return c.state.phase ?? (c.state.on ? 1 : 0);
+}
+
+function syncClockPhases() {
+  const now = performance.now();
+  for (const c of circ.components) if (c.type === 'clock') c.state.phase = +clockPhase(c, now).toFixed(4);
+}
+
 setInterval(() => {
+  const now = performance.now();
   let any = false;
-  for (const c of circ.components) if (c.type === 'clock' && c.state.running) { c.state.on = !c.state.on; any = true; }
+  for (const c of circ.components) {
+    if (c.type !== 'clock') continue;
+    let ph = clockNext.get(c.id);
+    if (!c.state.running) {
+      if (ph) { c.state.phase = clockPhase(c, now); clockNext.delete(c.id); } // freeze
+      continue;
+    }
+    if (!ph || ph.hz !== c.state.hz) { // new, resumed, loaded, or retuned
+      const p = ph ? clockPhase(c, now) : (c.state.phase ?? (c.state.on ? 1 : 0));
+      ph = { t0: now, p, hz: c.state.hz };
+      clockNext.set(c.id, ph);
+    }
+    const on = Math.floor(ph.p + (now - ph.t0) / (500 / ph.hz)) & 1;
+    if (on !== (c.state.on ? 1 : 0)) { c.state.on = !!on; any = true; }
+  }
   if (any) refresh(false);
-}, 500);
+}, 8);
 
 // ---- boot ---------------------------------------------------------------
 if (restore(circ)) { fit(); refresh(false); record(); } else loadExample('Half adder');

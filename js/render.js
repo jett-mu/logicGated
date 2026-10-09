@@ -15,38 +15,39 @@ const text = (s, x, y, cls = 'txt') => { const t = el('text', { x, y, class: cls
 
 // Colours come from CSS variables so the same markup themes for screen and print.
 export const SVG_CSS = `
-.wire{fill:none;stroke:var(--off);stroke-width:3;stroke-linecap:round}
+.wire{fill:none;stroke:var(--off);stroke-width:2.5;stroke-linecap:square;stroke-linejoin:miter}
 .wire.on{stroke:var(--on)}
-.wiresel{fill:none;stroke:var(--accent);stroke-width:8;opacity:.45;stroke-linecap:round}
+.wiresel{fill:none;stroke:var(--accent);stroke-width:8;opacity:.3}
 .wirehit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
+.wire.temp{stroke-dasharray:6 5;pointer-events:none}
+.shd{fill:var(--shd,transparent)}
+.body{fill:var(--body);stroke:var(--ink);stroke-width:1.5;stroke-linejoin:miter}
+.stub{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:square}
+.bubble{fill:var(--body);stroke:var(--ink);stroke-width:2}
+.pin{fill:var(--body);stroke:var(--off);stroke-width:2}
+.pin.on{fill:var(--on);stroke:var(--on)}
+.pinhit{fill:transparent;cursor:crosshair}
+.selbox{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4}
+.txt{fill:var(--ink);font:500 11px 'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;text-anchor:middle;pointer-events:none;user-select:none}
+.txt.dim{fill:var(--dim);font-size:9.5px;letter-spacing:.12em}
+.txt.big{font-size:40px;font-weight:600}
+.txt.big.on{fill:var(--on)}
+.track{fill:var(--bulbOff);stroke:var(--off);stroke-width:1.5;cursor:pointer}
+.track.on{fill:var(--on);stroke:var(--on)}
+.knob{fill:var(--ink);cursor:pointer}
+.key{fill:var(--bulbOff);stroke:var(--ink);stroke-width:1.5;cursor:pointer}
+.key.on{fill:var(--on);stroke:var(--on)}
+.nkey{fill:var(--bulbOff);stroke:var(--off);stroke-width:1;cursor:pointer}
+.nkey.on{fill:var(--on);stroke:var(--on)}
+.nkey.on + .txt{fill:var(--ink)}
+.led{fill:var(--bulbOff);stroke:var(--off);stroke-width:1.5}
+.led.on{fill:var(--on);stroke:var(--on)}
+.glass{fill:var(--bulbOff);stroke:var(--ink);stroke-width:2}
+.glass.on{fill:var(--bulbOn);stroke:var(--bulbOn)}
+.halo{fill:var(--bulbOn);opacity:.22}
 .endpt{fill:var(--body);stroke:var(--off);stroke-width:2}
 .endpt.on{stroke:var(--on)}
 .endhit{fill:transparent;cursor:grab}
-.wire.temp{stroke-dasharray:6 5;pointer-events:none}
-.body{fill:var(--body);stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
-.stub{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round}
-.bubble{fill:var(--body);stroke:var(--ink);stroke-width:2}
-.pin{fill:var(--off);stroke:var(--ink);stroke-width:1.5}
-.pin.on{fill:var(--on)}
-.pinhit{fill:transparent;cursor:crosshair}
-.selbox{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4}
-.txt{fill:var(--ink);font:600 11px ui-monospace,Menlo,Consolas,monospace;text-anchor:middle;pointer-events:none;user-select:none}
-.txt.dim{fill:var(--dim);font-size:10px;letter-spacing:.08em}
-.txt.big{font-size:40px;font-weight:700}
-.txt.big.on{fill:var(--on)}
-.track{fill:var(--bulbOff);stroke:var(--ink);stroke-width:1.5;cursor:pointer}
-.track.on{fill:var(--on)}
-.knob{fill:var(--ink);cursor:pointer}
-.key{fill:var(--bulbOff);stroke:var(--ink);stroke-width:1.5;cursor:pointer}
-.key.on{fill:var(--on)}
-.nkey{fill:var(--bulbOff);stroke:var(--off);stroke-width:1;cursor:pointer}
-.nkey.on{fill:var(--on);stroke:var(--ink)}
-.nkey.on + .txt{fill:#04210f}
-.led{fill:var(--bulbOff);stroke:var(--ink);stroke-width:1.5}
-.led.on{fill:var(--on)}
-.glass{fill:var(--bulbOff);stroke:var(--ink);stroke-width:2}
-.glass.on{fill:var(--bulbOn)}
-.halo{fill:var(--bulbOn);opacity:.28}
 `;
 
 const SHAPES = {
@@ -75,25 +76,28 @@ function drawGate(g, c, def) {
 
 function drawBody(g, c, def, val) {
   const { w, h } = def;
-  const box = () => g.append(el('rect', { class: 'body', x: 0, y: 0, width: w, height: h, rx: 8 }));
+  const box = () => {
+    g.append(el('rect', { class: 'shd', x: 3, y: 3, width: w, height: h }));
+    g.append(el('rect', { class: 'body', x: 0, y: 0, width: w, height: h }));
+  };
   switch (c.type) {
     case 'switch': {
       const on = c.state.on, ctl = { 'data-ctl': 'toggle', 'data-c': c.id };
       box(); g.append(text('SWITCH', 40, 14, 'txt dim'));
-      g.append(el('rect', { class: 'track' + (on ? ' on' : ''), x: 20, y: 22, width: 40, height: 20, rx: 10, ...ctl }));
-      g.append(el('circle', { class: 'knob', cx: on ? 50 : 30, cy: 32, r: 7, ...ctl }));
+      g.append(el('rect', { class: 'track' + (on ? ' on' : ''), x: 20, y: 22, width: 40, height: 20, ...ctl }));
+      g.append(el('rect', { class: 'knob', x: on ? 43 : 23, y: 25, width: 14, height: 14, ...ctl }));
       break;
     }
     case 'button':
       box(); g.append(text('BUTTON', 35, 14, 'txt dim'));
-      g.append(el('circle', { class: 'key' + (c.state.down ? ' on' : ''), cx: 35, cy: 36, r: 16, 'data-ctl': 'press', 'data-c': c.id }));
+      g.append(el('rect', { class: 'key' + (c.state.down ? ' on' : ''), x: 20, y: 22, width: 30, height: 30, 'data-ctl': 'press', 'data-c': c.id }));
       break;
     case 'clock':
       box();
       g.append(text('CLOCK', 40, 14, 'txt dim'));
       // Only the lamp toggles run/pause, so the rest of the body drags the part.
-      g.append(el('circle', { class: 'led' + (c.state.on ? ' on' : ''), cx: 20, cy: 33, r: 9, 'data-ctl': 'run', 'data-c': c.id, style: 'cursor:pointer' }));
-      g.append(text(c.state.running ? '1 Hz' : 'paused', 52, 37));
+      g.append(el('rect', { class: 'led' + (c.state.on ? ' on' : ''), x: 10, y: 23, width: 20, height: 20, 'data-ctl': 'run', 'data-c': c.id, style: 'cursor:pointer' }));
+      g.append(text(c.state.running ? `${+c.state.hz.toFixed(3)} Hz` : 'paused', 52, 37));
       break;
     case 'numpad': {
       const { bits, min, max, base, value } = c.state, n = max - min + 1;
@@ -103,7 +107,7 @@ function drawBody(g, c, def, val) {
       if (n <= 16) {
         for (let i = 0; i < n; i++) {
           const x = 8 + (i % 4) * 28, y = 26 + Math.floor(i / 4) * 30, l = lab(min + i);
-          g.append(el('rect', { class: 'nkey' + (value === min + i ? ' on' : ''), x, y, width: 25, height: 26, rx: 4, 'data-ctl': 'num', 'data-c': c.id, 'data-v': min + i }));
+          g.append(el('rect', { class: 'nkey' + (value === min + i ? ' on' : ''), x, y, width: 25, height: 26, 'data-ctl': 'num', 'data-c': c.id, 'data-v': min + i }));
           const t = text(l, x + 12.5, y + 17); t.setAttribute('style', `font-size:${size(l)}px`); g.append(t);
         }
       } else {
@@ -113,7 +117,7 @@ function drawBody(g, c, def, val) {
         if (base !== 'dec') g.append(text(`= ${value}`, 66, 68, 'txt dim'));
         [[-16, '-16'], [-1, '-1'], [1, '+1'], [16, '+16']].forEach(([d, s], k) => {
           const x = 8 + k * 28;
-          g.append(el('rect', { class: 'nkey', x, y: 76, width: 25, height: 26, rx: 4, 'data-ctl': 'step', 'data-c': c.id, 'data-v': d }));
+          g.append(el('rect', { class: 'nkey', x, y: 76, width: 25, height: 26, 'data-ctl': 'step', 'data-c': c.id, 'data-v': d }));
           g.append(text(s, x + 12.5, 93));
         });
       }
@@ -154,7 +158,7 @@ function drawBody(g, c, def, val) {
 export function drawComponent(c, out, src, opts = {}) {
   const def = dims(c);
   const g = el('g', { class: 'comp', transform: `translate(${c.x},${c.y})`, 'data-comp': c.id });
-  if (opts.selected) g.append(el('rect', { class: 'selbox', x: -8, y: -12, width: def.w + 16, height: def.h + 20, rx: 8 }));
+  if (opts.selected) g.append(el('rect', { class: 'selbox', x: -8, y: -12, width: def.w + 16, height: def.h + 20 }));
   // Hit area so the whole footprint is draggable.
   g.append(el('rect', { x: 0, y: 0, width: def.w, height: def.h, fill: 'transparent' }));
   const inVal = (i) => (out[src.get(`${c.id}:${i}`)] ? 1 : 0);
@@ -170,7 +174,7 @@ export function drawComponent(c, out, src, opts = {}) {
     for (let i = 0; i < n; i++) {
       const p = localPin(def, side, i);
       const on = side === 'in' ? inVal(i) : out[`${c.id}:${i}`];
-      g.append(el('circle', { class: 'pin' + (on ? ' on' : ''), cx: p.x, cy: p.y, r: 5 }));
+      g.append(el('rect', { class: 'pin' + (on ? ' on' : ''), x: p.x - 4, y: p.y - 4, width: 8, height: 8 }));
       if (opts.interactive) g.append(el('circle', { class: 'pinhit', cx: p.x, cy: p.y, r: 11, 'data-pin': side, 'data-c': c.id, 'data-p': i }));
     }
   }
@@ -195,13 +199,13 @@ export function renderCircuit(g, circ, out, opts = {}) {
     if (!a || !b) continue;
     const d = wirePath(a, b);
     const on = w.from.c !== undefined && out[`${w.from.c}:${w.from.p}`];
-    if (opts.selected?.kind === 'w' && opts.selected.id === w.id) g.append(el('path', { class: 'wiresel', d }));
+    if ((opts.selected?.kind === 'w' && opts.selected.id === w.id) || opts.hoverWire === w.id) g.append(el('path', { class: 'wiresel', d }));
     g.append(el('path', { class: 'wire' + (on ? ' on' : ''), d }));
     if (opts.interactive) g.append(el('path', { class: 'wirehit', d, 'data-wire': w.id }));
     // Open ends get a visible, draggable handle.
     for (const [side, e, pt] of [['from', w.from, a], ['to', w.to, b]]) {
       if (e.c !== undefined) continue;
-      g.append(el('circle', { class: 'endpt' + (on ? ' on' : ''), cx: pt.x, cy: pt.y, r: 5 }));
+      g.append(el('rect', { class: 'endpt' + (on ? ' on' : ''), x: pt.x - 4, y: pt.y - 4, width: 8, height: 8 }));
       if (opts.interactive) g.append(el('circle', { class: 'endhit', cx: pt.x, cy: pt.y, r: 11, 'data-wireend': side, 'data-wire': w.id }));
     }
   }

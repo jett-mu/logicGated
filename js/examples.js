@@ -42,6 +42,19 @@ export const EXAMPLES = {
     wire(c, carry, 0, D, 0);                       // 16s
     sums.forEach((s, bit) => wire(c, s, 0, D, 4 - bit)); // 8s..1s
   },
+  'Counter (clocks)'(c) {
+    // Six clocks, each half the speed of the one below: read together their
+    // on/off states are a 6-bit binary count, 0 to 63 (top clock = 32s bit).
+    // 8 Hz on the bottom clock = 16 counts per second, wrapping every 4 s.
+    const bits = 6;
+    const D = c.add('display', 320, 150);
+    c.configure(D, { bits, base: 'dec' });
+    for (let i = 0; i < bits; i++) {
+      const k = c.add('clock', 60, i * 70);
+      c.configure(k, { hz: 8 / 2 ** (bits - 1 - i) });
+      wire(c, k, 0, D, i);
+    }
+  },
   'Number pad → display'(c) {
     const p = c.add('numpad', 40, 40), d = c.add('display', 260, 55);
     [0, 1, 2, 3].forEach((i) => wire(c, p, i, d, i));

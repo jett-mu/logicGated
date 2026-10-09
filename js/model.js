@@ -31,7 +31,12 @@ export function dims(c) {
     const h = n <= 16 ? Math.max(90, 30 + Math.ceil(n / 4) * 30) : 110;
     return { ...d, h, outs: c.state.bits };
   }
-  if (c.type === 'display') return { ...d, h: Math.max(120, 24 * (c.state.bits + 1)), ins: c.state.bits };
+  if (c.type === 'display') {
+    const { bits, base } = c.state;
+    const len = base === 'bin' ? bits : base === 'hex' ? Math.ceil(bits / 4) : String(2 ** bits - 1).length;
+    // grow the body so the readout (about 20px per digit) never overflows
+    return { ...d, w: Math.max(100, 44 + len * 20), h: Math.max(120, 24 * (bits + 1)), ins: bits };
+  }
   return d;
 }
 

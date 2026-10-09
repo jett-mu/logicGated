@@ -136,10 +136,11 @@ function drawBody(g, c, def, val) {
       const v = Array.from({ length: bits }, (_, i) => val(`${c.id}:${i}`)).reduce((a, bit) => a * 2 + bit, 0);
       const l = fmt(v, base, bits);
       box();
-      const t = text(l, 66, h / 2 + 12, 'txt big' + (v ? ' on' : ''));
-      t.setAttribute('style', `font-size:${Math.min(40, Math.floor(76 / (l.length * 0.62)))}px`);
+      const cx = (34 + w - 6) / 2, avail = w - 40; // clear of the weight labels on the left
+      const t = text(l, cx, h / 2 + 12, 'txt big' + (v ? ' on' : ''));
+      t.setAttribute('style', `font-size:${Math.min(40, Math.floor(avail / (l.length * 0.62)))}px`);
       g.append(t);
-      g.append(text(base === 'dec' ? `0x${fmt(v, 'hex', bits)}` : `= ${v}`, 66, h - 14, 'txt dim'));
+      g.append(text(base === 'dec' ? `0x${fmt(v, 'hex', bits)}` : `= ${v}`, cx, h - 14, 'txt dim'));
       for (let i = 0; i < bits; i++) {
         const lb = text(2 ** (bits - 1 - i), 10, localPin(def, 'in', i).y + 4, 'txt dim');
         lb.setAttribute('style', 'text-anchor:start'); g.append(lb);

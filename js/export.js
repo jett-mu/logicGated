@@ -14,7 +14,7 @@ export function buildSchematic(circ, out) {
     maxX = Math.max(...circ.components.map((c) => c.x + dims(c).w)) + 50;
     maxY = Math.max(...circ.components.map((c) => c.y + dims(c).h)) + 50;
   }
-  const tbW = 250, tbH = 52;
+  const tbW = 330, tbH = 66;
   maxX = Math.max(maxX, minX + tbW + 40);
   maxY += tbH + 10;
   const W = maxX - minX, H = maxY - minY;
@@ -33,10 +33,19 @@ export function buildSchematic(circ, out) {
     const e = el('text', { x: tx + x, y: ty + y, 'font-family': 'ui-monospace,Menlo,Consolas,monospace', 'font-size': size, 'font-weight': weight, fill });
     e.textContent = s; return e;
   };
+  // Title block as a small table: header row, label row, value row.
   svg.append(el('rect', { x: tx, y: ty, width: tbW, height: tbH, fill: '#fff', stroke: '#111827', 'stroke-width': 1.5 }));
   svg.append(el('line', { x1: tx, y1: ty + 26, x2: tx + tbW, y2: ty + 26, stroke: '#111827' }));
+  svg.append(el('line', { x1: tx, y1: ty + 44, x2: tx + tbW, y2: ty + 44, stroke: '#9ca3af' }));
   svg.append(t('GATEWRIGHT — LOGIC SCHEMATIC', 10, 18, 12, 700));
-  svg.append(t(`${new Date().toISOString().slice(0, 10)}  ·  ${circ.components.length} parts  ·  ${circ.wires.length} wires`, 10, 43, 10, 500, '#6b7280'));
+  const cols = [['DATE', new Date().toISOString().slice(0, 10), 130], ['PARTS', String(circ.components.length), 100], ['WIRES', String(circ.wires.length), 100]];
+  let off = 0;
+  for (const [label, value, w] of cols) {
+    if (off) svg.append(el('line', { x1: tx + off, y1: ty + 26, x2: tx + off, y2: ty + tbH, stroke: '#111827' }));
+    svg.append(t(label, off + 8, 39, 9, 600, '#6b7280'));
+    svg.append(t(value, off + 8, 57, 11, 700));
+    off += w;
+  }
   return { svg: new XMLSerializer().serializeToString(svg), width: W, height: H };
 }
 

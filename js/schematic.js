@@ -268,12 +268,17 @@ export function renderSchematic(nl, tech = 'cmos', opts = {}) {
 
   const mos = L.nodes.reduce((a, n) => a + (n.mos ?? 0), 0), bjt = L.nodes.reduce((a, n) => a + (n.bjt ?? 0), 0);
   const res = L.nodes.reduce((a, n) => a + (n.res ?? 0), 0);
-  const tbW = 360, tbH = 52;
+  const cols = [['TECHNOLOGY', TECHS[tech].label, 160], ['TRANSISTORS', String(mos + bjt), 110], ...(tech === 'bjt' ? [['RESISTORS', String(res), 100]] : []), ['STAGES', String(nl.stages.length), 80], ['DATE', opts.date ?? new Date().toISOString().slice(0, 10), 100]];
+  const tbW = cols.reduce((a, c) => a + c[2], 0), tbH = 66;
   const W = Math.max(L.width, tbW + 60), H = L.height + tbH;
   const title = opts.title ?? 'GATEWRIGHT — TRANSISTOR-LEVEL SCHEMATIC';
-  const stats = tech === 'bjt' ? `${bjt} NPN · ${res} resistors` : `${mos} MOSFETs`;
-  const date = opts.date ?? new Date().toISOString().slice(0, 10);
   const tx = W - 10 - tbW, ty = H - 10 - tbH;
+  let cx = tx, cells = '';
+  for (const [label, value, w] of cols) {
+    if (cx > tx) cells += `<line x1="${cx}" y1="${ty + 26}" x2="${cx}" y2="${ty + tbH}" stroke="#111827"/>\n`;
+    cells += `<text class="t" x="${cx + 8}" y="${ty + 39}" fill="#6b7280">${esc(label)}</text><text class="t b" x="${cx + 8}" y="${ty + 57}">${esc(value)}</text>\n`;
+    cx += w;
+  }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 <style>${CSS}</style>
 <rect width="${W}" height="${H}" fill="#fff"/>
@@ -281,8 +286,8 @@ export function renderSchematic(nl, tech = 'cmos', opts = {}) {
 ${prims.map(primToSvg).join('\n')}
 <rect x="${tx}" y="${ty}" width="${tbW}" height="${tbH}" fill="#fff" stroke="#111827" stroke-width="1.5"/>
 <line x1="${tx}" y1="${ty + 26}" x2="${tx + tbW}" y2="${ty + 26}" stroke="#111827"/>
+<line x1="${tx}" y1="${ty + 44}" x2="${tx + tbW}" y2="${ty + 44}" stroke="#9ca3af"/>
 <text class="t b" x="${tx + 10}" y="${ty + 18}" font-weight="700">${esc(title)}</text>
-<text class="t" x="${tx + 10}" y="${ty + 43}">${esc(`${TECHS[tech].label} · ${stats} · ${date}`)}</text>
-</svg>`;
+${cells}</svg>`;
   return { svg, width: W, height: H, segs: L.segs, hops: wires.hops, transistors: mos + bjt, stages: nl.stages.length };
 }

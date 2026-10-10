@@ -79,6 +79,19 @@
     </div>
     <div id="e-preview" class="dlg-preview"></div>
   </dialog>
+  <dialog id="disclaimer-dlg" class="dlg dlg--notice" aria-labelledby="disclaimer-title">
+    <div class="dlg-head"><b id="disclaimer-title">Before you continue</b></div>
+    <div class="dlg-body">
+      <p>Gatewright is an educational tool. The software and every schematic, netlist or image it produces are provided &quot;as is&quot;, without warranty of any kind (see <a href="https://github.com/jett-mu/logicGated/blob/main/LICENCE.md" target="_blank" rel="noopener">LICENCE.md</a>).</p>
+      <p>Generated circuits, especially the transistor level export, are not verified, not checked against real component ratings, and have no protection circuitry. Do not use them for mains voltage, high current, batteries, or any safety critical purpose.</p>
+      <p>Check every design yourself before you build it. You build and use anything made with this tool at your own risk, and the author is not liable for injury, property damage or any other loss.</p>
+    </div>
+    <div class="dlg-bar">
+      <label class="chk-agree"><input class="check" type="checkbox" id="disclaimer-chk"><span>I have read, understand and agree to these terms.</span></label>
+      <span class="grow"></span>
+      <button class="btn btn--primary btn--sm" id="disclaimer-ok" disabled>Continue to app</button>
+    </div>
+  </dialog>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

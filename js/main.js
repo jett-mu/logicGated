@@ -4,6 +4,7 @@ import { el, renderCircuit, drawComponent, SVG_CSS } from './render.js';
 import { autosave, restore, saveFile, loadFile } from './storage.js';
 import { DEFAULT_EXPORT, buildSchematic, circuitSchematic, exportCircuitPNG, exportCircuitSVG, exportPNG, exportSVG } from './export.js';
 import { EXAMPLES } from './examples.js';
+import { requireDisclaimer } from './disclaimer.js';
 
 const $ = (s) => document.querySelector(s);
 const svg = $('#ws'), world = $('#world'), grid = $('#grid'), hint = $('#hint');
@@ -565,3 +566,4 @@ setInterval(() => {
 // ---- boot ---------------------------------------------------------------
 if (restore(circ)) { fit(); refresh(false); record(); } else loadExample('Half adder');
 window.addEventListener('resize', draw);
+requireDisclaimer();

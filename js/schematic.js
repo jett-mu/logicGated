@@ -3,7 +3,9 @@
 import { buildCell, TECHS } from './cells.js';
 import { shift } from './symbols.js';
 
-const TRACK = 14, CH_PAD = 36, ROW_GAP = 36, MARGIN = 50, TERM_W = 90, TERM_H = 24;
+export const HOP_R = 5;                 // hop-over arc radius
+export const MIN_GAP = 3 * HOP_R;       // 1.5 x the hop diameter: closest two wires may run
+const TRACK = MIN_GAP + 1, CH_PAD = 36, ROW_GAP = 36, MARGIN = 50, TERM_W = 90, TERM_H = 24;
 const EPS = 0.01;
 
 function terminal(kind, label) {
@@ -195,17 +197,17 @@ export function wirePrims(segs) {
   const verts = segs.filter((s) => !isH(s));
   let hops = 0;
   for (const s of segs) {
-    if (!isH(s)) { prims.push({ t: 'l', x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2, w: true }); continue; }
+    if (!isH(s)) { prims.push({ t: 'l', x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2, w: true, net: s.net }); continue; }
     const xa = Math.min(s.x1, s.x2), xb = Math.max(s.x1, s.x2), y = s.y1;
-    const cuts = verts.filter((v) => v.net !== s.net && v.x1 > xa + 7 && v.x1 < xb - 7
-      && y > Math.min(v.y1, v.y2) + EPS && y < Math.max(v.y1, v.y2) - EPS).map((v) => v.x1).sort((p, q) => p - q);
+    const cuts = [...new Set(verts.filter((v) => v.net !== s.net && v.x1 > xa + MIN_GAP / 2 && v.x1 < xb - MIN_GAP / 2
+      && y > Math.min(v.y1, v.y2) + EPS && y < Math.max(v.y1, v.y2) - EPS).map((v) => v.x1))].sort((p, q) => p - q);
     let cur = xa;
     for (const cx of cuts) {
-      if (cx - 5 > cur) prims.push({ t: 'l', x1: cur, y1: y, x2: cx - 5, y2: y, w: true });
-      prims.push({ t: 'hop', x: cx, y, r: 5, w: true });
-      cur = cx + 5; hops++;
+      if (cx - HOP_R > cur) prims.push({ t: 'l', x1: cur, y1: y, x2: cx - HOP_R, y2: y, w: true, net: s.net });
+      prims.push({ t: 'hop', x: cx, y, r: HOP_R, w: true, net: s.net });
+      cur = cx + HOP_R; hops++;
     }
-    prims.push({ t: 'l', x1: cur, y1: y, x2: xb, y2: y, w: true });
+    prims.push({ t: 'l', x1: cur, y1: y, x2: xb, y2: y, w: true, net: s.net });
   }
   // Junction dots: a point of one net where >=3 distinct directions leave.
   const byNet = new Map();
@@ -229,7 +231,7 @@ export function wirePrims(segs) {
           if (Math.max(s.y1, s.y2) > py + EPS) dirs.add('D');
         }
       }
-      if (dirs.size >= 3) { seen.add(k); prims.push({ t: 'd', x: px, y: py }); }
+      if (dirs.size >= 3) { seen.add(k); prims.push({ t: 'd', x: px, y: py, net: list[0].net }); }
     }
   }
   return { prims, hops };

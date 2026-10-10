@@ -11,6 +11,8 @@ export const DEFS = {
   and:  gate('AND'),  or:  gate('OR'),  xor:  gate('XOR'),
   nand: gate('NAND'), nor: gate('NOR'), xnor: gate('XNOR'),
   not:  gate('NOT', 1), buf: gate('BUFFER', 1),
+  tin:     { label: 'Input terminal', group: null, w: 84, h: 24, ins: 0, outs: 1 },
+  tout:    { label: 'Output terminal', group: null, w: 84, h: 24, ins: 1, outs: 0 },
   bulb:    { label: 'Lightbulb', group: 'Outputs', w: 60,  h: 60,  ins: 1, outs: 0 },
   display: { label: 'Hex display', group: 'Outputs', w: 100, h: 120, ins: 4, outs: 0 },
 };

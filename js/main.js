@@ -2,7 +2,7 @@ import { Circuit, DEFS, GROUPS, defaultState, dims, pinPos } from './model.js';
 import { simulate } from './sim.js';
 import { el, renderCircuit, drawComponent, SVG_CSS } from './render.js';
 import { autosave, restore, saveFile, loadFile } from './storage.js';
-import { circuitSchematic, exportCircuitPNG, exportCircuitSVG, exportPNG, exportSVG } from './export.js';
+import { DEFAULT_EXPORT, buildSchematic, circuitSchematic, exportCircuitPNG, exportCircuitSVG, exportPNG, exportSVG } from './export.js';
 import { EXAMPLES } from './examples.js';
 
 const $ = (s) => document.querySelector(s);
@@ -472,15 +472,44 @@ $('#file').addEventListener('change', async (e) => {
 $('#btn-undo').onclick = () => stepHistory(-1);
 $('#btn-redo').onclick = () => stepHistory(1);
 $('#btn-fit').onclick = () => { fit(); draw(); };
-$('#btn-png').onclick = () => exportPNG(circ, out);
-$('#btn-svg').onclick = () => exportSVG(circ, out);
+
+// ---- schematic export dialog (PNG / SVG with preview + settings) -----------
+const exDlg = $('#export-dlg'), exPrev = $('#e-preview');
+let exOpts = { ...DEFAULT_EXPORT };
+try { exOpts = { ...exOpts, ...JSON.parse(localStorage.getItem('gatewright.export') || '{}') }; } catch { /* defaults */ }
+
+function renderExportDialog() {
+  $('#e-wire').value = exOpts.wireStyle;
+  $('#e-in').checked = exOpts.subInputs;
+  $('#e-out').checked = exOpts.subOutputs;
+  $('#e-off').checked = exOpts.deactivateInputs;
+  exPrev.className = 'dlg-preview' + ($('#e-zoom').value === 'fit' ? ' fit' : '');
+  const empty = !circ.components.length;
+  exPrev.innerHTML = empty ? '<div class="empty">Nothing to export yet — add some parts to the canvas.</div>' : buildSchematic(circ, out, exOpts).svg;
+  $('#e-svg').disabled = $('#e-png').disabled = empty;
+}
+function setExport(patch) {
+  exOpts = { ...exOpts, ...patch };
+  try { localStorage.setItem('gatewright.export', JSON.stringify(exOpts)); } catch { /* storage unavailable */ }
+  renderExportDialog();
+}
+$('#btn-export').onclick = () => { renderExportDialog(); exDlg.showModal(); };
+$('#e-wire').addEventListener('change', (e) => setExport({ wireStyle: e.target.value }));
+$('#e-in').addEventListener('change', (e) => setExport({ subInputs: e.target.checked }));
+$('#e-out').addEventListener('change', (e) => setExport({ subOutputs: e.target.checked }));
+$('#e-off').addEventListener('change', (e) => setExport({ deactivateInputs: e.target.checked }));
+$('#e-zoom').addEventListener('change', renderExportDialog);
+$('#e-close').onclick = () => exDlg.close();
+exDlg.addEventListener('click', (e) => { if (e.target === exDlg) exDlg.close(); });
+$('#e-svg').onclick = () => exportSVG(circ, out, exOpts);
+$('#e-png').onclick = () => exportPNG(circ, out, exOpts);
 
 // ---- transistor-level circuit export -------------------------------------
 const dlg = $('#circuit-dlg'), cTech = $('#c-tech'), cZoom = $('#c-zoom'), cPrev = $('#c-preview');
 function renderCircuitDialog() {
   const r = circuitSchematic(circ, cTech.value);
   const empty = !r.nl.stages.length && !r.nl.inputs.length && !r.nl.outputs.length;
-  cPrev.className = cZoom.value === 'fit' ? 'fit' : '';
+  cPrev.className = 'dlg-preview' + (cZoom.value === 'fit' ? ' fit' : '');
   if (empty) cPrev.innerHTML = '<div class="empty">Nothing to draw yet — add some parts to the canvas.</div>';
   else cPrev.innerHTML = r.svg;
   $('#c-stats').textContent = empty ? '' : `${r.transistors} transistors · ${r.stages} stages`;

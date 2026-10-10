@@ -22,8 +22,7 @@
       <select class="select select--sm" id="examples" title="Load an example"><option value="">Examples…</option></select>
       <button class="btn btn--ghost btn--sm" id="btn-fit" title="Fit circuit to view">Fit</button>
       <span class="toolbar__sep"></span>
-      <button class="btn btn--ghost btn--sm" id="btn-png" title="Export schematic as PNG">PNG</button>
-      <button class="btn btn--ghost btn--sm" id="btn-svg" title="Export schematic as SVG">SVG</button>
+      <button class="btn btn--ghost btn--sm" id="btn-export" title="Export a PNG / SVG schematic (with preview &amp; settings)">Export…</button>
       <button class="btn btn--primary btn--sm" id="btn-circuit" title="Transistor-level schematic (CMOS / BJT)">Circuit…</button>
       <input id="file" type="file" accept=".json,application/json" hidden>
     </div>
@@ -45,7 +44,7 @@
       <footer class="label">Drag from a pin to wire · click switches &amp; keys · <span class="kbd">Del</span> or right-click removes · <span class="kbd">Ctrl/⌘ Z</span> undoes · scroll zooms</footer>
     </div>
   </main>
-  <dialog id="circuit-dlg">
+  <dialog id="circuit-dlg" class="dlg">
     <div class="dlg-head"><b>Circuit export</b><span class="label">Every gate expanded into real transistors</span><button class="btn btn--ghost btn--sm btn--icon" id="c-close" title="Close">&#10005;</button></div>
     <div class="dlg-bar">
       <label><span class="label">Technology</span>
@@ -59,7 +58,25 @@
       <button class="btn btn--sm" id="c-svg">Download SVG</button>
       <button class="btn btn--primary btn--sm" id="c-png">Download PNG</button>
     </div>
-    <div id="c-preview"></div>
+    <div id="c-preview" class="dlg-preview"></div>
+  </dialog>
+  <dialog id="export-dlg" class="dlg">
+    <div class="dlg-head"><b>Export schematic</b><span class="label">Preview &amp; settings for PNG / SVG</span><button class="btn btn--ghost btn--sm btn--icon" id="e-close" title="Close">&#10005;</button></div>
+    <div class="dlg-bar">
+      <label><span class="label">Wires</span>
+        <select class="select select--sm" id="e-wire"><option value="curve">Keep curved connections</option><option value="ortho">Straight, separated connections</option></select>
+      </label>
+      <label class="chk"><input class="check" type="checkbox" id="e-in"><span>Inputs as terminals <span class="label">switch, button, clock, number pad</span></span></label>
+      <label class="chk"><input class="check" type="checkbox" id="e-out"><span>Outputs as terminals <span class="label">bulb, display</span></span></label>
+      <label class="chk"><input class="check" type="checkbox" id="e-off"><span>Deactivate all inputs <span class="label">draw with every input low</span></span></label>
+      <label><span class="label">View</span>
+        <select class="select select--sm" id="e-zoom"><option value="fit">Fit to window</option><option value="full">Actual size</option></select>
+      </label>
+      <span class="grow"></span>
+      <button class="btn btn--sm" id="e-svg">Download SVG</button>
+      <button class="btn btn--primary btn--sm" id="e-png">Download PNG</button>
+    </div>
+    <div id="e-preview" class="dlg-preview"></div>
   </dialog>
   <script type="module" src="js/main.js"></script>
 </body>

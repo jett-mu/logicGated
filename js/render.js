@@ -48,6 +48,8 @@ export const SVG_CSS = `
 .endpt{fill:var(--body);stroke:var(--off);stroke-width:2}
 .endpt.on{stroke:var(--on)}
 .endhit{fill:transparent;cursor:grab}
+.jdot{fill:var(--ink)}
+.port{fill:var(--body);stroke:var(--ink);stroke-width:1.5;stroke-linejoin:miter}
 `;
 
 const SHAPES = {
@@ -127,6 +129,14 @@ function drawBody(g, c, def, val) {
       }
       break;
     }
+    case 'tin':
+      g.append(el('path', { class: 'port', d: `M0,0 H${w - 10} L${w},${h / 2} L${w - 10},${h} H0 Z` }));
+      g.append(text(c.state.label ?? '', (w - 10) / 2, h / 2 + 4));
+      break;
+    case 'tout':
+      g.append(el('path', { class: 'port', d: `M0,${h / 2} L10,0 H${w} V${h} H10 Z` }));
+      g.append(text(c.state.label ?? '', 10 + (w - 10) / 2, h / 2 + 4));
+      break;
     case 'bulb': {
       const on = val(`${c.id}:in`);
       if (on) g.append(el('circle', { class: 'halo', cx: 38, cy: 30, r: 29 }));
@@ -194,7 +204,7 @@ export function renderCircuit(g, circ, out, opts = {}) {
     const c = circ.get(e.c);
     return c ? pinPos(c, side, e.p) : null;
   };
-  for (const w of circ.wires) {
+  for (const w of opts.noWires ? [] : circ.wires) {
     const a = at(w.from, 'out'), b = at(w.to, 'in');
     if (!a || !b) continue;
     const d = wirePath(a, b);

@@ -84,19 +84,20 @@ export function diode(x, y) {
 export function battery(x, y) {
   return {
     prims: [
-      l(x + 45, y + 10, x + 90, y + 10), l(x + 45, y + 10, x + 45, y + 22),
+      { ...l(x + 45, y + 10, x + 90, y + 10), net: 'VDD' }, { ...l(x + 45, y + 10, x + 45, y + 22), net: 'VDD' },
       l(x + 33, y + 22, x + 57, y + 22), l(x + 39, y + 28, x + 51, y + 28),
       l(x + 33, y + 34, x + 57, y + 34), l(x + 39, y + 40, x + 51, y + 40),
-      l(x + 45, y + 40, x + 45, y + 56), l(x + 45, y + 56, x + 90, y + 56),
-      text('+', x + 70, y + 6, 'middle'), text('-', x + 70, y + 52, 'middle'),
+      { ...l(x + 45, y + 40, x + 45, y + 56), net: 'GND' }, { ...l(x + 45, y + 56, x + 90, y + 56), net: 'GND' },
+      { ...text('+', x + 70, y + 6, 'middle'), net: 'VDD' }, { ...text('-', x + 70, y + 52, 'middle'), net: 'GND' },
       text('DC +V', x + 45, y + 74, 'middle'),
     ],
     plus: { x: x + 90, y: y + 10 }, minus: { x: x + 90, y: y + 56 },
   };
 }
 
-export const supply = (x, y, name = 'VDD') => [l(x, y, x, y - 8), l(x - 7, y - 8, x + 7, y - 8), text(name, x, y - 12, 'middle')];
-export const ground = (x, y) => [l(x, y, x, y + 6), l(x - 8, y + 6, x + 8, y + 6), l(x - 5, y + 9, x + 5, y + 9), l(x - 2, y + 12, x + 2, y + 12)];
+const tag = (net, prims) => prims.map((p) => ({ ...p, net }));
+export const supply = (x, y, name = 'VDD') => tag('VDD', [l(x, y, x, y - 8), l(x - 7, y - 8, x + 7, y - 8), text(name, x, y - 12, 'middle')]);
+export const ground = (x, y) => tag('GND', [l(x, y, x, y + 6), l(x - 8, y + 6, x + 8, y + 6), l(x - 5, y + 9, x + 5, y + 9), l(x - 2, y + 12, x + 2, y + 12)]);
 
 export function shift(prims, dx, dy) {
   return prims.map((p) => {

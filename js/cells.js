@@ -91,36 +91,39 @@ function relayCell(kind, n, opts = {}) {
   const inHop = (y) => P.push(line(0, y, 15, y), hop(20, y), line(25, y, 40, y));
   // Flyback diode across the coil (pins 1-2): cathode to the signal side, anode to GND.
   const fly = (y) => { if (opts.diode) P.push(...diode(30, y), dot(30, y), dot(30, y + 20)); };
+  // Rails are tagged with their net so the export can colour them (red +V, blue GND).
+  const V = (...q) => P.push(...q.map((x) => ({ ...x, net: 'VDD' })));
+  const G = (...q) => P.push(...q.map((x) => ({ ...x, net: 'GND' })));
   if (kind === 'not') {
     add(relay(40, 30, K()));
     inHop(40); fly(40);
-    P.push(line(0, 10, 135, 10), line(40, 60, 20, 60), line(20, 60, 20, 10), dot(20, 10),
-      line(120, 34, 135, 34), line(135, 34, 135, 10),
-      line(0, 90, 135, 90), line(120, 66, 135, 66), line(135, 66, 135, 90),
-      line(120, 50, 170, 50));
+    G(line(0, 10, 135, 10), line(40, 60, 20, 60), line(20, 60, 20, 10), dot(20, 10),
+      line(120, 34, 135, 34), line(135, 34, 135, 10));
+    V(line(0, 90, 135, 90), line(120, 66, 135, 66), line(135, 66, 135, 90));
+    P.push(line(120, 50, 170, 50));
     return { w: 170, h: 100, ins: [{ x: 0, y: 40 }], out: { x: 170, y: 50 }, vdd: { x: 0, y: 90 }, gnd: { x: 0, y: 10 }, prims: P, relays: 1, diodes: opts.diode ? 1 : 0 };
   }
   add(relay(40, 30, K())); add(relay(40, 110, K()));
   inHop(40); inHop(120); fly(40); fly(120);
   if (kind === 'nand2') {
-    P.push(line(0, 10, 135, 10), line(20, 10, 20, 140), dot(20, 10), dot(20, 60),
+    G(line(0, 10, 135, 10), line(20, 10, 20, 140), dot(20, 10), dot(20, 60),
       line(40, 60, 20, 60), line(40, 140, 20, 140),
-      line(120, 34, 135, 34), line(135, 34, 135, 10),
-      line(120, 50, 130, 50), line(130, 50, 130, 114), line(130, 114, 120, 114),            // top.4 -> bottom.3
-      line(0, 180, 145, 180), line(145, 66, 145, 180), dot(145, 146),
-      line(120, 66, 125, 66), hop(130, 66), line(135, 66, 145, 66), line(120, 146, 145, 146),
-      line(120, 130, 140, 130), hop(145, 130), line(150, 130, 170, 130));
+      line(120, 34, 135, 34), line(135, 34, 135, 10));
+    P.push(line(120, 50, 130, 50), line(130, 50, 130, 114), line(130, 114, 120, 114));       // top.4 -> bottom.3
+    V(line(0, 180, 145, 180), line(145, 66, 145, 180), dot(145, 146),
+      line(120, 66, 125, 66), hop(130, 66), line(135, 66, 145, 66), line(120, 146, 145, 146));
+    P.push(line(120, 130, 140, 130), hop(145, 130), line(150, 130, 170, 130));
     return { w: 170, h: 190, ins: [{ x: 0, y: 40 }, { x: 0, y: 120 }], out: { x: 170, y: 130 }, vdd: { x: 0, y: 180 }, gnd: { x: 0, y: 10 }, prims: P, relays: 2, diodes: opts.diode ? 2 : 0 };
   }
   // nor2
-  P.push(line(0, 10, 135, 10), line(20, 10, 20, 170), dot(20, 10), dot(20, 60), dot(20, 140),
+  G(line(0, 10, 135, 10), line(20, 10, 20, 170), dot(20, 10), dot(20, 60), dot(20, 140),
     line(40, 60, 20, 60), line(40, 140, 20, 140),
     line(120, 34, 135, 34), line(135, 34, 135, 10),
     line(20, 170, 145, 170), line(145, 114, 145, 170),                                        // second GND tap
-    line(120, 114, 125, 114), hop(130, 114), line(135, 114, 145, 114),
-    line(120, 66, 130, 66), line(130, 66, 130, 130), line(130, 130, 120, 130),              // top.5 -> bottom.4
-    line(120, 146, 140, 146), hop(145, 146), line(150, 146, 160, 146), line(160, 146, 160, 190), line(0, 190, 160, 190),
-    line(120, 50, 170, 50));
+    line(120, 114, 125, 114), hop(130, 114), line(135, 114, 145, 114));
+  P.push(line(120, 66, 130, 66), line(130, 66, 130, 130), line(130, 130, 120, 130));         // top.5 -> bottom.4
+  V(line(120, 146, 140, 146), hop(145, 146), line(150, 146, 160, 146), line(160, 146, 160, 190), line(0, 190, 160, 190));
+  P.push(line(120, 50, 170, 50));
   return { w: 170, h: 200, ins: [{ x: 0, y: 40 }, { x: 0, y: 120 }], out: { x: 170, y: 50 }, vdd: { x: 0, y: 190 }, gnd: { x: 0, y: 10 }, prims: P, relays: 2, diodes: opts.diode ? 2 : 0 };
 }
 

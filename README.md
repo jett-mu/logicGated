@@ -30,7 +30,7 @@ All paths are relative, so it works from a project subpath. The only external re
 - Undo and redo, autosave to localStorage, and save/open as JSON.
 - Gate level export to PNG or SVG, with a live preview and options for curved or straight wires, terminals instead of widgets, and deactivated inputs.
 - Transistor level export (CMOS MOSFET or BJT NPN RTL) as a real schematic with hop-over arcs and junction dots.
-- Relay export: every gate built from 5-terminal changeover relays (1-2 coil, 3 normally open, 4 common, 5 normally closed) powered from one wired DC source, with optional flyback diodes across every coil.
+- Relay export: every gate built from 5-terminal changeover relays (1-2 coil, 3 normally open, 4 common, 5 normally closed) powered from one wired DC source, with optional flyback diodes across every coil and an optional red / blue power rail colouring (beta) that works for every technology.
 
 ## Code layout
 

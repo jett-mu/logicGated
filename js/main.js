@@ -567,7 +567,8 @@ $('#e-png').onclick = () => exportPNG(circ, out, exOpts);
 // ---- transistor-level circuit export -------------------------------------
 const dlg = $('#circuit-dlg'), cTech = $('#c-tech'), cZoom = $('#c-zoom'), cPrev = $('#c-preview');
 const cDiode = $('#c-diode');
-const circuitOpts = () => ({ diode: cTech.value === 'relay' && cDiode.checked });
+const cColor = $('#c-color');
+const circuitOpts = () => ({ diode: cTech.value === 'relay' && cDiode.checked, color: cColor.checked });
 function renderCircuitDialog() {
   $('#c-diode-wrap').hidden = cTech.value !== 'relay';
   const r = circuitSchematic(circ, cTech.value, circuitOpts());
@@ -581,6 +582,7 @@ function renderCircuitDialog() {
 $('#btn-circuit').onclick = () => { renderCircuitDialog(); dlg.showModal(); };
 cTech.addEventListener('change', renderCircuitDialog);
 cDiode.addEventListener('change', renderCircuitDialog);
+cColor.addEventListener('change', renderCircuitDialog);
 cZoom.addEventListener('change', renderCircuitDialog);
 $('#c-close').onclick = () => dlg.close();
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });

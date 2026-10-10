@@ -144,7 +144,7 @@ export function layoutSchematic(nl, tech, opts = {}) {
       for (const b of base) {
         if (b === a) continue;
         const ys = b.role === 'drv' ? (b.net.near.map((s) => portY(s.node, s.pin))) : sinkYs(b);
-        if (ys.some((y) => Math.abs(y - ya) < 0.5)) before.get(b).add(a);
+        if (ys.some((y) => Math.abs(y - ya) < MIN_GAP)) before.get(b).add(a);
       }
     }
     const done = new Set(), seq = [];
@@ -271,8 +271,16 @@ const CSS = `.s,.w{stroke:#111827;stroke-width:1.6;fill:none;stroke-linecap:roun
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const f = (n) => Math.round(n * 100) / 100;
 
-function primToSvg(p) {
+const RAIL_COLORS = { VDD: '#c62828', GND: '#1565c0' };
+function primToSvg(p, colors) {
   const cls = p.w ? 'w' : 's';
+  const col = colors && RAIL_COLORS[p.net];
+  const svg = primSvg(p, cls);
+  if (!col) return svg;
+  return svg.replace(/^<(\w+)/, p.t === 'd' || p.t === 't' ? `<$1 style="fill:${col}"` : `<$1 style="stroke:${col}"`);
+}
+
+function primSvg(p, cls) {
   switch (p.t) {
     case 'l': return `<line class="${cls}" x1="${f(p.x1)}" y1="${f(p.y1)}" x2="${f(p.x2)}" y2="${f(p.y2)}"${p.dash ? ' stroke-dasharray="3 3"' : ''}/>`;
     case 'o': return `<circle class="s" cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r}" ${p.r > 10 ? 'stroke-width="1"' : ''}/>`;
@@ -291,8 +299,8 @@ export function renderSchematic(nl, tech = 'cmos', opts = {}) {
   // ground ties for unconnected inputs
   for (const g of L.grounds) {
     const x = L.colX[g.node.col], y = g.node.y + g.node.ins[g.pin].y;
-    prims.push({ t: 'l', x1: x - 14, y1: y, x2: x, y2: y, w: true }, { t: 'l', x1: x - 14, y1: y, x2: x - 14, y2: y + 6 },
-      { t: 'l', x1: x - 22, y1: y + 6, x2: x - 6, y2: y + 6 }, { t: 'l', x1: x - 19, y1: y + 9, x2: x - 9, y2: y + 9 }, { t: 'l', x1: x - 16, y1: y + 12, x2: x - 12, y2: y + 12 });
+    prims.push({ t: 'l', x1: x - 14, y1: y, x2: x, y2: y, w: true, net: 'GND' }, { t: 'l', x1: x - 14, y1: y, x2: x - 14, y2: y + 6, net: 'GND' },
+      { t: 'l', x1: x - 22, y1: y + 6, x2: x - 6, y2: y + 6, net: 'GND' }, { t: 'l', x1: x - 19, y1: y + 9, x2: x - 9, y2: y + 9, net: 'GND' }, { t: 'l', x1: x - 16, y1: y + 12, x2: x - 12, y2: y + 12, net: 'GND' });
   }
   const wires = wirePrims(L.segs);
   prims.push(...wires.prims);
@@ -320,7 +328,7 @@ export function renderSchematic(nl, tech = 'cmos', opts = {}) {
 <style>${CSS}</style>
 <rect width="${W}" height="${H}" fill="#fff"/>
 <rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="none" stroke="#111827" stroke-width="1.5"/>
-${prims.map(primToSvg).join('\n')}
+${prims.map((p) => primToSvg(p, opts.color)).join('\n')}
 <rect x="${tx}" y="${ty}" width="${tbW}" height="${tbH}" fill="#fff" stroke="#111827" stroke-width="1.5"/>
 <line x1="${tx}" y1="${ty + 26}" x2="${tx + tbW}" y2="${ty + 26}" stroke="#111827"/>
 <line x1="${tx}" y1="${ty + 44}" x2="${tx + tbW}" y2="${ty + 44}" stroke="#9ca3af"/>

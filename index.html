@@ -46,11 +46,12 @@
     </div>
   </main>
   <dialog id="circuit-dlg" class="dlg">
-    <div class="dlg-head"><b>Circuit export</b><span class="label">Every gate expanded into real transistors</span><button class="btn btn--ghost btn--sm btn--icon" id="c-close" title="Close">&#10005;</button></div>
+    <div class="dlg-head"><b>Circuit export</b><span class="label">Every gate expanded into real transistors or relays</span><button class="btn btn--ghost btn--sm btn--icon" id="c-close" title="Close">&#10005;</button></div>
     <div class="dlg-bar">
       <label><span class="label">Technology</span>
-        <select class="select select--sm" id="c-tech"><option value="cmos">CMOS MOSFET</option><option value="bjt">BJT NPN (RTL)</option></select>
+        <select class="select select--sm" id="c-tech"><option value="cmos">CMOS MOSFET</option><option value="bjt">BJT NPN (RTL)</option><option value="relay">Relay (electromechanical)</option></select>
       </label>
+      <label class="chk" id="c-diode-wrap" hidden><input class="check" type="checkbox" id="c-diode"><span>Add flyback diodes <span class="label">across every coil</span></span></label>
       <label><span class="label">View</span>
         <select class="select select--sm" id="c-zoom"><option value="fit">Fit to window</option><option value="full">Actual size</option></select>
       </label>

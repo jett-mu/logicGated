@@ -3,12 +3,15 @@
 import { buildSrc } from './sim.js';
 
 const PRIMARY = { switch: 'SW', button: 'BTN', clock: 'CLK' };
+const HIGH = 'HIGH'; // terminal label for constant-1 sources
 
 export function buildNetlist(circ) {
   const src = buildSrc(circ);
   const stages = [];
   let tmp = 0;
-  const inNet = (c, i) => src.get(`${c.id}:${i}`) ?? '0'; // '0' = tied to ground
+  const zeros = new Set(circ.components.filter((c) => c.type === 'const0').map((c) => `${c.id}:0`));
+  // '0' = tied to ground; a constant-0 source is just that
+  const inNet = (c, i) => { const n = src.get(`${c.id}:${i}`) ?? '0'; return zeros.has(n) ? '0' : n; };
   const emit = (kind, ins, out) => {
     const o = out ?? `t${++tmp}`;
     stages.push({ id: stages.length, kind, ins, out: o });
@@ -60,6 +63,8 @@ export function buildNetlist(circ) {
     if (base) {
       counts[base] = (counts[base] ?? 0) + 1;
       inputs.push(...pick([{ net: `${c.id}:0`, label: `${base}${counts[base]}`, used: used.has(`${c.id}:0`) }]));
+    } else if (c.type === 'const1') {
+      inputs.push(...pick([{ net: `${c.id}:0`, label: HIGH, used: used.has(`${c.id}:0`) }]));
     } else if (c.type === 'numpad') {
       const name = String.fromCharCode(65 + pad++);
       const bits = c.state.bits;

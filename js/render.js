@@ -27,6 +27,7 @@ export const SVG_CSS = `
 .pin{fill:var(--body);stroke:var(--off);stroke-width:2}
 .pin.on{fill:var(--on);stroke:var(--on)}
 .pinhit{fill:transparent;cursor:crosshair}
+.marquee{fill:var(--accent);fill-opacity:.08;stroke:var(--accent);stroke-width:1;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;pointer-events:none}
 .selbox{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4}
 .txt{fill:var(--ink);font:500 11px 'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;text-anchor:middle;pointer-events:none;user-select:none}
 .txt.dim{fill:var(--dim);font-size:9.5px;letter-spacing:.12em}
@@ -93,6 +94,10 @@ function drawBody(g, c, def, val) {
     case 'button':
       box(); g.append(text('BUTTON', 35, 14, 'txt dim'));
       g.append(el('rect', { class: 'key' + (c.state.down ? ' on' : ''), x: 20, y: 22, width: 30, height: 30, 'data-ctl': 'press', 'data-c': c.id }));
+      break;
+    case 'const0': case 'const1':
+      box(); g.append(text('CONST', 35, 14, 'txt dim'));
+      { const t = text(c.type === 'const1' ? '1' : '0', 35, 34, 'txt big'); t.setAttribute('style', 'font-size:22px'); g.append(t); }
       break;
     case 'clock':
       box();
@@ -209,7 +214,7 @@ export function renderCircuit(g, circ, out, opts = {}) {
     if (!a || !b) continue;
     const d = wirePath(a, b);
     const on = w.from.c !== undefined && out[`${w.from.c}:${w.from.p}`];
-    if ((opts.selected?.kind === 'w' && opts.selected.id === w.id) || opts.hoverWire === w.id) g.append(el('path', { class: 'wiresel', d }));
+    if ((opts.selected?.kind === 'w' && opts.selected.id === w.id) || opts.multi?.w.has(w.id) || opts.hoverWire === w.id) g.append(el('path', { class: 'wiresel', d }));
     g.append(el('path', { class: 'wire' + (on ? ' on' : ''), d }));
     if (opts.interactive) g.append(el('path', { class: 'wirehit', d, 'data-wire': w.id }));
     // Open ends get a visible, draggable handle.
@@ -221,6 +226,6 @@ export function renderCircuit(g, circ, out, opts = {}) {
   }
   if (opts.temp) g.append(el('path', { class: 'wire temp' + (opts.temp.on ? ' on' : ''), d: wirePath(opts.temp.a, opts.temp.b) }));
   for (const c of circ.components) {
-    g.append(drawComponent(c, out, src, { interactive: opts.interactive, selected: opts.selected?.kind === 'c' && opts.selected.id === c.id }));
+    g.append(drawComponent(c, out, src, { interactive: opts.interactive, selected: (opts.selected?.kind === 'c' && opts.selected.id === c.id) || !!opts.multi?.c.has(c.id) }));
   }
 }

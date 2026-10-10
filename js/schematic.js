@@ -1,7 +1,7 @@
 // Place stages in columns, route nets orthogonally on unique tracks, resolve
 // crossings (hop arcs) and junctions (dots), and emit an SVG string. No DOM.
 import { buildCell, TECHS } from './cells.js';
-import { shift } from './symbols.js';
+import { battery, shift } from './symbols.js';
 
 export const DISCLAIMER = 'Educational use only. Provided "as is", without warranty of any kind. Not verified or checked against real component ratings, and has no protection circuitry. Not for mains voltage, high current, batteries or any safety-critical use. Verify every design yourself before building. Use at your own risk; the author is not liable for injury, property damage or any other loss.';
 const FOOT_CH = 4.9, FOOT_LH = 11;      // 8px monospace advance, line height
@@ -28,8 +28,9 @@ function terminal(kind, label) {
       { t: 'l', x1: 0, y1: mid, x2: 34, y2: mid }, { t: 'o', x: 34, y: mid, r: 3 }, { t: 't', x: 40, y: mid + 4, s: label, a: 'start', b: true }] };
 }
 
-export function layoutSchematic(nl, tech) {
-  const names = { M: 0, Q: 0, R: 0 };
+export function layoutSchematic(nl, tech, opts = {}) {
+  const names = { M: 0, Q: 0, R: 0, K: 0 };
+  const rails = !!TECHS[tech].rails;
   const nodes = [];
   const nets = new Map(); // net -> {drv, sinks:[{node,pin}]}
   const netOf = (n) => { if (!nets.has(n)) nets.set(n, { drv: null, sinks: [] }); return nets.get(n); };
@@ -49,16 +50,32 @@ export function layoutSchematic(nl, tech) {
   };
   const maxLevel = Math.max(0, ...nl.stages.map(level));
 
+  if (rails) { // one DC source feeds every relay over real VDD / GND wires
+    const b = battery(0, 0);
+    const nd = { w: 90, h: 90, ins: [], out: null, prims: b.prims, col: 0, kind: 'src' };
+    nodes.push(nd);
+    Object.assign(netOf('VDD'), { drv: nd, port: b.plus });
+    Object.assign(netOf('GND'), { drv: nd, port: b.minus });
+  }
   for (const t of nl.inputs) {
     const nd = { ...terminal('in', t.label), col: 0, kind: 'in' };
     nodes.push(nd); netOf(t.net).drv = nd;
   }
   for (const s of nl.stages) {
-    const cell = buildCell(tech, s.kind, names);
+    const cell = buildCell(tech, s.kind, names, opts);
     const nd = { ...cell, col: level(s), kind: 'stage', stage: s };
     nodes.push(nd);
     netOf(s.out).drv = nd;
-    s.ins.forEach((n, pin) => { if (n !== '0') netOf(n).sinks.push({ node: nd, pin }); });
+    s.ins.forEach((n, pin) => {
+      if (n !== '0') netOf(n).sinks.push({ node: nd, pin });
+      else if (rails) netOf('GND').sinks.push({ node: nd, pin }); // tied-low input: wire to the GND rail
+    });
+    if (rails) {
+      const k = nd.ins.length;
+      nd.ins = [...nd.ins, cell.vdd, cell.gnd];
+      netOf('VDD').sinks.push({ node: nd, pin: k });
+      netOf('GND').sinks.push({ node: nd, pin: k + 1 });
+    }
   }
   for (const t of nl.outputs) {
     const nd = { ...terminal('out', t.label), col: maxLevel + 1, kind: 'out' };
@@ -67,7 +84,7 @@ export function layoutSchematic(nl, tech) {
   const ncols = maxLevel + 2;
   // inputs tied to ground (net '0') get a local ground symbol, no routing.
   const grounds = [];
-  for (const nd of nodes) if (nd.stage) nd.stage.ins.forEach((n, pin) => { if (n === '0') grounds.push({ node: nd, pin }); });
+  for (const nd of nodes) if (nd.stage && !rails) nd.stage.ins.forEach((n, pin) => { if (n === '0') grounds.push({ node: nd, pin }); });
 
   // --- classify nets: near sinks (next column) vs far sinks (need a lane) ---
   const routed = [];
@@ -76,7 +93,7 @@ export function layoutSchematic(nl, tech) {
     const d = n.drv.col;
     const near = n.sinks.filter((s) => s.node.col === d + 1);
     const far = n.sinks.filter((s) => s.node.col !== d + 1);
-    routed.push({ id, drv: n.drv, near, far, lane: far.length ? 1 : 0 });
+    routed.push({ id, drv: n.drv, port: n.port, near, far, lane: far.length ? 1 : 0 });
   }
   const laneNets = routed.filter((r) => r.lane);
   laneNets.forEach((r, i) => { r.laneIdx = i; });
@@ -113,16 +130,17 @@ export function layoutSchematic(nl, tech) {
     for (const s of new Set(r.far.map((f) => f.node.col))) users[s].push({ net: r, role: 'snk', col: s });
   }
   const portY = (nd, pin) => nd.y + nd.ins[pin].y;
+  const outPort = (r) => r.port ?? r.drv.out;
   const order = new Map(); // `${k}|${net.id}|${role}` -> track index
   users.forEach((list, k) => {
     // sinks' horizontal runs (trunk -> cell) must not overlap a driver run on the same y.
     const sinkYs = (u) => (u.net.near.length && u.role === 'drv' ? u.net.near : u.net.far.filter((f) => f.node.col === u.col))
       .map((s) => portY(s.node, s.pin));
-    const yOf = (u) => (u.role === 'drv' ? u.net.drv.y + u.net.drv.out.y : sinkYs(u)[0] ?? 0);
+    const yOf = (u) => (u.role === 'drv' ? u.net.drv.y + outPort(u.net).y : sinkYs(u)[0] ?? 0);
     const base = [...list].sort((a, b) => yOf(a) - yOf(b));
     const before = new Map(base.map((u) => [u, new Set()]));
     for (const a of base) if (a.role === 'drv') {
-      const ya = a.net.drv.y + a.net.drv.out.y;
+      const ya = a.net.drv.y + outPort(a.net).y;
       for (const b of base) {
         if (b === a) continue;
         const ys = b.role === 'drv' ? (b.net.near.map((s) => portY(s.node, s.pin))) : sinkYs(b);
@@ -155,7 +173,7 @@ export function layoutSchematic(nl, tech) {
   const segs = [];
   const seg = (net, x1, y1, x2, y2) => { if (Math.abs(x1 - x2) > EPS || Math.abs(y1 - y2) > EPS) segs.push({ net, x1, y1, x2, y2 }); };
   for (const r of routed) {
-    const d = r.drv, xd = colX[d.col] + d.out.x, yd = d.y + d.out.y;
+    const d = r.drv, xd = colX[d.col] + outPort(r).x, yd = d.y + outPort(r).y;
     const tx = trunkX(d.col + 1, r.id, 'drv');
     const laneY = r.lane ? MARGIN + 10 + r.laneIdx * TRACK : null;
     const ys = [yd, ...r.near.map((s) => portY(s.node, s.pin))];
@@ -256,7 +274,7 @@ const f = (n) => Math.round(n * 100) / 100;
 function primToSvg(p) {
   const cls = p.w ? 'w' : 's';
   switch (p.t) {
-    case 'l': return `<line class="${cls}" x1="${f(p.x1)}" y1="${f(p.y1)}" x2="${f(p.x2)}" y2="${f(p.y2)}"/>`;
+    case 'l': return `<line class="${cls}" x1="${f(p.x1)}" y1="${f(p.y1)}" x2="${f(p.x2)}" y2="${f(p.y2)}"${p.dash ? ' stroke-dasharray="3 3"' : ''}/>`;
     case 'o': return `<circle class="s" cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r}" ${p.r > 10 ? 'stroke-width="1"' : ''}/>`;
     case 'd': return `<circle class="f" cx="${f(p.x)}" cy="${f(p.y)}" r="3.2"/>`;
     case 'hop': return `<path class="${cls}" d="M${f(p.x - p.r)},${f(p.y)} A${p.r},${p.r} 0 0 1 ${f(p.x + p.r)},${f(p.y)}"/>`;
@@ -267,7 +285,7 @@ function primToSvg(p) {
 }
 
 export function renderSchematic(nl, tech = 'cmos', opts = {}) {
-  const L = layoutSchematic(nl, tech);
+  const L = layoutSchematic(nl, tech, opts);
   const prims = [];
   for (const n of L.nodes) prims.push(...shift(n.prims, L.colX[n.col], n.y));
   // ground ties for unconnected inputs
@@ -281,11 +299,16 @@ export function renderSchematic(nl, tech = 'cmos', opts = {}) {
 
   const mos = L.nodes.reduce((a, n) => a + (n.mos ?? 0), 0), bjt = L.nodes.reduce((a, n) => a + (n.bjt ?? 0), 0);
   const res = L.nodes.reduce((a, n) => a + (n.res ?? 0), 0);
-  const cols = [['TECHNOLOGY', TECHS[tech].label, 160], ['TRANSISTORS', String(mos + bjt), 110], ...(tech === 'bjt' ? [['RESISTORS', String(res), 100]] : []), ['STAGES', String(nl.stages.length), 80], ['DATE', opts.date ?? new Date().toISOString().slice(0, 10), 100]];
+  const relays = L.nodes.reduce((a, n) => a + (n.relays ?? 0), 0);
+  const diodes = L.nodes.reduce((a, n) => a + (n.diodes ?? 0), 0);
+  const techW = Math.max(160, 40 + TECHS[tech].label.length * 7);
+  const cols = [['TECHNOLOGY', TECHS[tech].label, techW],
+    ...(tech === 'relay' ? [['RELAYS', String(relays), 90], ...(opts.diode ? [['DIODES', String(diodes), 90]] : []), ['SUPPLY', 'DC +V', 90]] : [['TRANSISTORS', String(mos + bjt), 110]]),
+    ...(tech === 'bjt' ? [['RESISTORS', String(res), 100]] : []), ['STAGES', String(nl.stages.length), 80], ['DATE', opts.date ?? new Date().toISOString().slice(0, 10), 100]];
   const tbW = cols.reduce((a, c) => a + c[2], 0), tbH = 66;
   const W = Math.max(L.width, tbW + 60);
   const foot = disclaimerFooter(W - 20), H = L.height + tbH + foot.height;
-  const title = opts.title ?? 'GATEWRIGHT — TRANSISTOR-LEVEL SCHEMATIC';
+  const title = opts.title ?? `GATEWRIGHT — ${tech === 'relay' ? 'RELAY' : 'TRANSISTOR'}-LEVEL SCHEMATIC`;
   const tx = W - 10 - tbW, ty = H - 10 - foot.height - tbH, fy = H - 10 - foot.height;
   let cx = tx, cells = '';
   for (const [label, value, w] of cols) {
@@ -305,5 +328,5 @@ ${prims.map(primToSvg).join('\n')}
 <line x1="10" y1="${fy}" x2="${W - 10}" y2="${fy}" stroke="#111827"/>
 ${foot.lines.map((ln, i) => `<text x="20" y="${fy + 14 + i * foot.lh}" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="8" fill="#6b7280">${esc(ln)}</text>`).join('\n')}
 ${cells}</svg>`;
-  return { svg, width: W, height: H, segs: L.segs, hops: wires.hops, transistors: mos + bjt, stages: nl.stages.length };
+  return { svg, width: W, height: H, segs: L.segs, hops: wires.hops, transistors: mos + bjt, stages: nl.stages.length, relays };
 }

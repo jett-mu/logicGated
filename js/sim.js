@@ -27,6 +27,8 @@ export function simulate(circ, out = {}) {
       if (c.type === 'switch') vals = [c.state.on];
       else if (c.type === 'button') vals = [c.state.down];
       else if (c.type === 'clock') vals = [c.state.on];
+      else if (c.type === 'const0') vals = [0];
+      else if (c.type === 'const1') vals = [1];
       else if (c.type === 'numpad') {
         const n = c.state.bits; // pin 0 is the most significant bit
         vals = Array.from({ length: n }, (_, i) => (c.state.value >> (n - 1 - i)) & 1);

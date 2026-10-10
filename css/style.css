@@ -55,6 +55,7 @@ main { flex: 1; display: flex; min-height: 0; }
 #inspector h3 { margin: 0 0 var(--s2); color: var(--accent); }
 #inspector label { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin-top: var(--s2); }
 #inspector .input, #inspector .select { width: 84px; height: 28px; font-size: var(--fs-xs); padding: 0 var(--s2); }
+#inspector .select { width: 96px; padding-right: 30px; background-position: right 10px center; }
 
 /* Circuit export dialog */
 .dlg {
@@ -89,6 +90,7 @@ main { flex: 1; display: flex; min-height: 0; }
 
 .dlg-bar .chk { align-items: flex-start; }
 .dlg-bar .chk > span { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); }
+.dlg-bar [hidden] { display: none; }
 
 /* Copyright box: flush in the very bottom-right corner, no margin */
 .stage footer { right: 190px; }

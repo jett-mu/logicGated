@@ -7,6 +7,8 @@ export const DEFS = {
   switch:  { label: 'Switch',  group: 'Inputs',  w: 80,  h: 50,  ins: 0, outs: 1 },
   button:  { label: 'Button',  group: 'Inputs',  w: 70,  h: 60,  ins: 0, outs: 1 },
   clock:   { label: 'Clock',   group: 'Inputs',  w: 80,  h: 50,  ins: 0, outs: 1 },
+  const0:  { label: 'Constant 0', group: 'Inputs', w: 70, h: 44, ins: 0, outs: 1 },
+  const1:  { label: 'Constant 1', group: 'Inputs', w: 70, h: 44, ins: 0, outs: 1 },
   numpad:  { label: 'Number pad', group: 'Inputs', w: 150, h: 150, ins: 0, outs: 4 },
   and:  gate('AND'),  or:  gate('OR'),  xor:  gate('XOR'),
   nand: gate('NAND'), nor: gate('NOR'), xnor: gate('XNOR'),

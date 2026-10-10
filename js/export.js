@@ -119,16 +119,16 @@ export function exportPNG(circ, out, opts, scale = 2) {
 }
 
 // ---- transistor-level circuit export ------------------------------------
-export function circuitSchematic(circ, tech) {
+export function circuitSchematic(circ, tech, opts = {}) {
   const nl = buildNetlist(circ);
-  return { nl, ...renderSchematic(nl, tech) };
+  return { nl, ...renderSchematic(nl, tech, opts) };
 }
 
-export function exportCircuitSVG(circ, tech) {
-  download(new Blob([circuitSchematic(circ, tech).svg], { type: 'image/svg+xml' }), `gatewright-circuit-${tech}.svg`);
+export function exportCircuitSVG(circ, tech, opts) {
+  download(new Blob([circuitSchematic(circ, tech, opts).svg], { type: 'image/svg+xml' }), `gatewright-circuit-${tech}.svg`);
 }
 
-export function exportCircuitPNG(circ, tech) {
-  const { svg, width, height } = circuitSchematic(circ, tech);
+export function exportCircuitPNG(circ, tech, opts) {
+  const { svg, width, height } = circuitSchematic(circ, tech, opts);
   rasterize(svg, width, height, `gatewright-circuit-${tech}.png`, 2);
 }

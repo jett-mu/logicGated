@@ -13,6 +13,7 @@ let out = {};
 let view = { x: 40, y: 60, k: 1 };
 let sel = null;   // {kind:'c'|'w', id}
 let drag = null;
+const multi = { c: new Set(), w: new Set() }; // marquee (right-drag) selection
 
 const snap = (v) => Math.round(v / 10) * 10;
 const toWorld = (e) => {
@@ -32,7 +33,11 @@ function tempWire() {
 
 function draw() {
   world.replaceChildren();
-  renderCircuit(world, circ, out, { interactive: true, selected: sel, temp: tempWire(), hoverWire });
+  renderCircuit(world, circ, out, { interactive: true, selected: sel, multi, temp: tempWire(), hoverWire });
+  if (drag?.type === 'marquee') {
+    const r = marqueeRect(drag);
+    world.append(el('rect', { class: 'marquee', x: r.x0, y: r.y0, width: r.x1 - r.x0, height: r.y1 - r.y0 }));
+  }
   world.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`);
   const s = 20 * view.k;
   grid.setAttribute('width', s); grid.setAttribute('height', s);
@@ -68,7 +73,7 @@ function stepHistory(dir) {
     if (old && old[0] === c.type) for (const k of live) if (k in old[1]) c.state[k] = old[1][k];
     if (c.type === 'numpad') c.state.value = Math.min(c.state.max, Math.max(c.state.min, c.state.value));
   }
-  sel = null;
+  sel = null; multi.c.clear(); multi.w.clear();
   inspKey = undefined;
   refresh(false);
   syncClockPhases();
@@ -131,7 +136,33 @@ function spliceInto(c, w) {
 }
 
 // ---- canvas interaction -------------------------------------------------
+function marqueeRect(d) {
+  return { x0: Math.min(d.a.x, d.b.x), y0: Math.min(d.a.y, d.b.y), x1: Math.max(d.a.x, d.b.x), y1: Math.max(d.a.y, d.b.y) };
+}
+
+function selectInRect(d) {
+  const r = marqueeRect(d);
+  multi.c.clear(); multi.w.clear();
+  for (const c of circ.components) {
+    const m = dims(c);
+    if (c.x <= r.x1 && c.x + m.w >= r.x0 && c.y <= r.y1 && c.y + m.h >= r.y0) multi.c.add(c.id);
+  }
+  const inside = (q) => q && q.x >= r.x0 && q.x <= r.x1 && q.y >= r.y0 && q.y <= r.y1;
+  for (const w of circ.wires) {
+    if (inside(endPos(w.from, 'out')) && inside(endPos(w.to, 'in'))) multi.w.add(w.id);
+  }
+}
+
 svg.addEventListener('pointerdown', (e) => {
+  if (e.button === 2) { // right-drag on empty canvas: box-select
+    if (e.target.closest('[data-comp],[data-wire],[data-pin],[data-wireend]')) return;
+    const p = toWorld(e);
+    sel = null; multi.c.clear(); multi.w.clear();
+    drag = { type: 'marquee', a: p, b: p };
+    draw();
+    addDragListeners();
+    return;
+  }
   if (e.button !== 0) return;
   const t = e.target, p = toWorld(e);
   const pin = t.closest('[data-pin]'), ctl = t.closest('[data-ctl]');
@@ -144,7 +175,7 @@ svg.addEventListener('pointerdown', (e) => {
     drag = endH.dataset.wireend === 'to'
       ? { type: 'wire', side: 'out', from: w.from, pos: p }
       : { type: 'wire', side: 'in', to: w.to, pos: p };
-    sel = null;
+    sel = null; multi.c.clear(); multi.w.clear();
   } else if (pin) {
     const c = +pin.dataset.c, pi = +pin.dataset.p;
     if (pin.dataset.pin === 'out') drag = { type: 'wire', side: 'out', from: { c, p: pi }, pos: p };
@@ -155,7 +186,7 @@ svg.addEventListener('pointerdown', (e) => {
         drag = { type: 'wire', side: 'out', from: w.from, pos: p };
       } else drag = { type: 'wire', side: 'in', to: { c, p: pi }, pos: p };
     }
-    sel = null;
+    sel = null; multi.c.clear(); multi.w.clear();
   } else if (ctl) {
     const c = circ.get(+ctl.dataset.c);
     sel = { kind: 'c', id: c.id };
@@ -170,8 +201,18 @@ svg.addEventListener('pointerdown', (e) => {
     return;
   } else if (comp) {
     const c = circ.get(+comp.dataset.comp);
-    sel = { kind: 'c', id: c.id };
-    drag = { type: 'move', c, dx: p.x - c.x, dy: p.y - c.y };
+    if (multi.c.has(c.id)) { // drag the whole box selection together
+      drag = {
+        type: 'movemulti', p0: p,
+        cs: circ.components.filter((x) => multi.c.has(x.id)).map((x) => ({ c: x, x: x.x, y: x.y })),
+        ws: circ.wires.filter((w) => multi.w.has(w.id) && w.from.c === undefined && w.to.c === undefined)
+          .map((w) => ({ w, a: { ...w.from }, b: { ...w.to } })),
+      };
+    } else {
+      multi.c.clear(); multi.w.clear();
+      sel = { kind: 'c', id: c.id };
+      drag = { type: 'move', c, dx: p.x - c.x, dy: p.y - c.y };
+    }
   } else if (wire) {
     const w = circ.wires.find((x) => x.id === +wire.dataset.wire);
     const at = (e, side) => (e.c === undefined ? e : pinPos(circ.get(e.c), side, e.p));
@@ -183,7 +224,7 @@ svg.addEventListener('pointerdown', (e) => {
       drag = da <= db
         ? { type: 'wire', side: 'in', to: w.to, pos: p }
         : { type: 'wire', side: 'out', from: w.from, pos: p };
-      sel = null;
+      sel = null; multi.c.clear(); multi.w.clear();
     } else {
       sel = { kind: 'w', id: w.id };
       if (w.from.c === undefined && w.to.c === undefined) {
@@ -191,7 +232,7 @@ svg.addEventListener('pointerdown', (e) => {
       }
     }
   } else {
-    sel = null;
+    sel = null; multi.c.clear(); multi.w.clear();
     drag = { type: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
   }
   draw();
@@ -216,6 +257,18 @@ function onMove(e) {
     draw();
   } else if (drag.type === 'wire') {
     drag.pos = toWorld(e);
+    draw();
+  } else if (drag.type === 'marquee') {
+    drag.b = toWorld(e);
+    selectInRect(drag);
+    draw();
+  } else if (drag.type === 'movemulti') {
+    const p = toWorld(e), dx = snap(p.x - drag.p0.x), dy = snap(p.y - drag.p0.y);
+    for (const o of drag.cs) { o.c.x = o.x + dx; o.c.y = o.y + dy; }
+    for (const o of drag.ws) {
+      o.w.from = { x: o.a.x + dx, y: o.a.y + dy };
+      o.w.to = { x: o.b.x + dx, y: o.b.y + dy };
+    }
     draw();
   } else if (drag.type === 'movewire') {
     const p = toWorld(e), dx = snap(p.x - drag.p0.x), dy = snap(p.y - drag.p0.y);
@@ -267,7 +320,7 @@ svg.addEventListener('contextmenu', (e) => {
   if (comp) circ.remove(+comp.dataset.comp);
   else if (wire) circ.removeWire(+wire.dataset.wire);
   else return;
-  sel = null;
+  sel = null; multi.c.clear(); multi.w.clear();
   refresh();
 });
 
@@ -284,10 +337,16 @@ svg.addEventListener('wheel', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
-  if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
+  if ((e.key === 'Delete' || e.key === 'Backspace') && (multi.c.size || multi.w.size)) {
+    e.preventDefault();
+    for (const id of multi.w) circ.removeWire(id);
+    for (const id of multi.c) circ.remove(id);
+    multi.c.clear(); multi.w.clear();
+    refresh();
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
     e.preventDefault();
     if (sel.kind === 'c') circ.remove(sel.id); else circ.removeWire(sel.id);
-    sel = null;
+    sel = null; multi.c.clear(); multi.w.clear();
     refresh();
   } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
     e.preventDefault();
@@ -295,7 +354,7 @@ window.addEventListener('keydown', (e) => {
   } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
     e.preventDefault();
     stepHistory(1);
-  } else if (e.key === 'Escape') { sel = null; draw(); }
+  } else if (e.key === 'Escape') { sel = null; multi.c.clear(); multi.w.clear(); draw(); }
 });
 
 // ---- palette (drag parts onto the canvas) -------------------------------
@@ -446,7 +505,7 @@ function updateInspector() {
 
 // ---- toolbar ------------------------------------------------------------
 function loadExample(name) {
-  circ.clear(); out = {}; sel = null; clockNext.clear();
+  circ.clear(); out = {}; sel = null; multi.c.clear(); multi.w.clear(); clockNext.clear();
   EXAMPLES[name](circ);
   // Examples always start from a known, shared point: every clock low, phase 0.
   for (const c of circ.components) if (c.type === 'clock') { c.state.on = false; c.state.phase = 0; }
@@ -459,7 +518,7 @@ exSel.addEventListener('change', () => { if (exSel.value) loadExample(exSel.valu
 
 $('#btn-new').onclick = () => {
   if (circ.components.length && !confirm('Clear the whole workspace?')) return;
-  circ.clear(); out = {}; sel = null; refresh();
+  circ.clear(); out = {}; sel = null; multi.c.clear(); multi.w.clear(); refresh();
 };
 $('#btn-save').onclick = () => { syncClockPhases(); saveFile(circ); };
 $('#btn-open').onclick = () => $('#file').click();
@@ -467,7 +526,7 @@ $('#file').addEventListener('change', async (e) => {
   const f = e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  try { out = {}; await loadFile(circ, f); clockNext.clear(); sel = null; fit(); refresh(); }
+  try { out = {}; await loadFile(circ, f); clockNext.clear(); sel = null; multi.c.clear(); multi.w.clear(); fit(); refresh(); }
   catch (err) { alert(`Could not open file: ${err.message}`); }
 });
 $('#btn-undo').onclick = () => stepHistory(-1);
@@ -507,22 +566,26 @@ $('#e-png').onclick = () => exportPNG(circ, out, exOpts);
 
 // ---- transistor-level circuit export -------------------------------------
 const dlg = $('#circuit-dlg'), cTech = $('#c-tech'), cZoom = $('#c-zoom'), cPrev = $('#c-preview');
+const cDiode = $('#c-diode');
+const circuitOpts = () => ({ diode: cTech.value === 'relay' && cDiode.checked });
 function renderCircuitDialog() {
-  const r = circuitSchematic(circ, cTech.value);
+  $('#c-diode-wrap').hidden = cTech.value !== 'relay';
+  const r = circuitSchematic(circ, cTech.value, circuitOpts());
   const empty = !r.nl.stages.length && !r.nl.inputs.length && !r.nl.outputs.length;
   cPrev.className = 'dlg-preview' + (cZoom.value === 'fit' ? ' fit' : '');
   if (empty) cPrev.innerHTML = '<div class="empty">Nothing to draw yet — add some parts to the canvas.</div>';
   else cPrev.innerHTML = r.svg;
-  $('#c-stats').textContent = empty ? '' : `${r.transistors} transistors · ${r.stages} stages`;
+  $('#c-stats').textContent = empty ? '' : `${cTech.value === 'relay' ? `${r.relays} relays` : `${r.transistors} transistors`} · ${r.stages} stages`;
   $('#c-svg').disabled = $('#c-png').disabled = empty;
 }
 $('#btn-circuit').onclick = () => { renderCircuitDialog(); dlg.showModal(); };
 cTech.addEventListener('change', renderCircuitDialog);
+cDiode.addEventListener('change', renderCircuitDialog);
 cZoom.addEventListener('change', renderCircuitDialog);
 $('#c-close').onclick = () => dlg.close();
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
-$('#c-svg').onclick = () => exportCircuitSVG(circ, cTech.value);
-$('#c-png').onclick = () => exportCircuitPNG(circ, cTech.value);
+$('#c-svg').onclick = () => exportCircuitSVG(circ, cTech.value, circuitOpts());
+$('#c-png').onclick = () => exportCircuitPNG(circ, cTech.value, circuitOpts());
 
 // ---- clock ticks --------------------------------------------------------
 // Each clock keeps a phase in [0,2): 0..1 = low half, 1..2 = high half. Level

@@ -38,7 +38,7 @@ export function buildSchematic(source, sourceOut, opts = {}) {
     minX = Math.min(...xs) - 50; minY = Math.min(...ys) - 50;
     maxX = Math.max(...xs) + 50; maxY = Math.max(...ys) + 50;
   }
-  const tbW = 330, tbH = 66;
+  const tbW = 330, tbH = 84;
   maxX = Math.max(maxX, minX + tbW + 40);
   maxY += tbH + 10;
   const W = maxX - minX, H = maxY - minY;
@@ -71,6 +71,8 @@ export function buildSchematic(source, sourceOut, opts = {}) {
     svg.append(t(value, off + 8, 57, 11, 700));
     off += w;
   }
+  svg.append(el('line', { x1: tx, y1: ty + 66, x2: tx + tbW, y2: ty + 66, stroke: '#9ca3af' }));
+  svg.append(t('EDUCATIONAL USE ONLY · NO WARRANTY · VERIFY BEFORE BUILDING', 10, 79, 8, 600, '#6b7280'));
   return { svg: new XMLSerializer().serializeToString(svg), width: W, height: H, segs: routed?.segs ?? [] };
 }
 

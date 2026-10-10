@@ -101,6 +101,10 @@ Because the output is plain SVG text with no DOM use, it can be run and checked 
 
 `styles.css` is the LATCH design system: a light, matte, square cornered palette with hard offset shadows, using Chakra Petch and IBM Plex Mono. `css/style.css` only adds app layout on top of its tokens.
 
+## Disclaimer and safety
+
+Gatewright is an educational tool. The software and every schematic, netlist or image it produces are provided "as is", without warranty of any kind (see `LICENCE.md`). Generated circuits, especially the transistor level export, are not verified, not checked against real component ratings, and have no protection circuitry. Do not use them for mains voltage, high current, batteries, or any safety critical purpose. Check every design yourself before you build it. You build and use anything made with this tool at your own risk, and the author is not liable for injury, property damage or any other loss.
+
 ## Notes and limits
 
 - XOR and XNOR expand to four NAND stages in the transistor export, so they are larger than a dedicated XOR cell.

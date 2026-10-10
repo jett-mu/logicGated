@@ -271,7 +271,7 @@ export function renderSchematic(nl, tech = 'cmos', opts = {}) {
   const mos = L.nodes.reduce((a, n) => a + (n.mos ?? 0), 0), bjt = L.nodes.reduce((a, n) => a + (n.bjt ?? 0), 0);
   const res = L.nodes.reduce((a, n) => a + (n.res ?? 0), 0);
   const cols = [['TECHNOLOGY', TECHS[tech].label, 160], ['TRANSISTORS', String(mos + bjt), 110], ...(tech === 'bjt' ? [['RESISTORS', String(res), 100]] : []), ['STAGES', String(nl.stages.length), 80], ['DATE', opts.date ?? new Date().toISOString().slice(0, 10), 100]];
-  const tbW = cols.reduce((a, c) => a + c[2], 0), tbH = 66;
+  const tbW = cols.reduce((a, c) => a + c[2], 0), tbH = 84;
   const W = Math.max(L.width, tbW + 60), H = L.height + tbH;
   const title = opts.title ?? 'GATEWRIGHT — TRANSISTOR-LEVEL SCHEMATIC';
   const tx = W - 10 - tbW, ty = H - 10 - tbH;
@@ -290,6 +290,8 @@ ${prims.map(primToSvg).join('\n')}
 <line x1="${tx}" y1="${ty + 26}" x2="${tx + tbW}" y2="${ty + 26}" stroke="#111827"/>
 <line x1="${tx}" y1="${ty + 44}" x2="${tx + tbW}" y2="${ty + 44}" stroke="#9ca3af"/>
 <text class="t b" x="${tx + 10}" y="${ty + 18}" font-weight="700">${esc(title)}</text>
+<line x1="${tx}" y1="${ty + 66}" x2="${tx + tbW}" y2="${ty + 66}" stroke="#9ca3af"/>
+<text class="t" x="${tx + 10}" y="${ty + 79}" fill="#6b7280" font-size="8">EDUCATIONAL USE ONLY · NO WARRANTY · VERIFY BEFORE BUILDING · NOT FOR MAINS OR SAFETY-CRITICAL USE</text>
 ${cells}</svg>`;
   return { svg, width: W, height: H, segs: L.segs, hops: wires.hops, transistors: mos + bjt, stages: nl.stages.length };
 }

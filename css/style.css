@@ -91,4 +91,6 @@ main { flex: 1; display: flex; min-height: 0; }
   background: var(--surface); border-top: var(--bw) solid var(--line-2); border-left: var(--bw) solid var(--line-2);
 }
 .credit a { color: var(--accent); }
+.credit .disclaimer { color: var(--ink-3); }
+@media (max-width: 700px) { .credit .disclaimer { display: none; } }
 @media (max-width: 900px) { .stage footer { display: none; } }

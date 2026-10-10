@@ -2,7 +2,7 @@
 import { dims } from './model.js';
 import { el, renderCircuit, SVG_CSS } from './render.js';
 import { buildNetlist } from './netlist.js';
-import { renderSchematic, wirePrims } from './schematic.js';
+import { renderSchematic, wirePrims, disclaimerFooter } from './schematic.js';
 import { exportView } from './exportview.js';
 import { routeOrtho } from './orthowires.js';
 
@@ -38,9 +38,10 @@ export function buildSchematic(source, sourceOut, opts = {}) {
     minX = Math.min(...xs) - 50; minY = Math.min(...ys) - 50;
     maxX = Math.max(...xs) + 50; maxY = Math.max(...ys) + 50;
   }
-  const tbW = 330, tbH = 84;
+  const tbW = 330, tbH = 66;
   maxX = Math.max(maxX, minX + tbW + 40);
-  maxY += tbH + 10;
+  const foot = disclaimerFooter(maxX - minX - 16);
+  maxY += tbH + 10 + foot.height;
   const W = maxX - minX, H = maxY - minY;
 
   const svg = el('svg', { xmlns: 'http://www.w3.org/2000/svg', width: W, height: H, viewBox: `${minX} ${minY} ${W} ${H}`, style: PRINT_VARS });
@@ -53,7 +54,7 @@ export function buildSchematic(source, sourceOut, opts = {}) {
   renderCircuit(g, circ, out, { interactive: false, noWires: !!routed });
   svg.append(g);
 
-  const tx = maxX - 8 - tbW, ty = maxY - 8 - tbH;
+  const tx = maxX - 8 - tbW, ty = maxY - 8 - foot.height - tbH, fy = maxY - 8 - foot.height;
   const t = (s, x, y, size, weight = 600, fill = '#111827') => {
     const e = el('text', { x: tx + x, y: ty + y, 'font-family': 'ui-monospace,Menlo,Consolas,monospace', 'font-size': size, 'font-weight': weight, fill });
     e.textContent = s; return e;
@@ -71,8 +72,12 @@ export function buildSchematic(source, sourceOut, opts = {}) {
     svg.append(t(value, off + 8, 57, 11, 700));
     off += w;
   }
-  svg.append(el('line', { x1: tx, y1: ty + 66, x2: tx + tbW, y2: ty + 66, stroke: '#9ca3af' }));
-  svg.append(t('EDUCATIONAL USE ONLY · NO WARRANTY · VERIFY BEFORE BUILDING', 10, 79, 8, 600, '#6b7280'));
+  // Full-width disclaimer footer under the title block.
+  svg.append(el('line', { x1: minX + 8, y1: fy, x2: maxX - 8, y2: fy, stroke: '#111827', 'stroke-width': 1.5 }));
+  foot.lines.forEach((ln, i) => {
+    const e = el('text', { x: minX + 18, y: fy + 14 + i * foot.lh, 'font-family': 'ui-monospace,Menlo,Consolas,monospace', 'font-size': 8, 'font-weight': 600, fill: '#6b7280' });
+    e.textContent = ln; svg.append(e);
+  });
   return { svg: new XMLSerializer().serializeToString(svg), width: W, height: H, segs: routed?.segs ?? [] };
 }
 

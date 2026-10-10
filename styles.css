@@ -3,7 +3,7 @@
    Light · matte · square-cornered
    Fonts: Chakra Petch (UI/display), IBM Plex Mono (values, code, labels)
    ========================================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('fonts/fonts.css');
 
 :root {
   /* Surfaces */

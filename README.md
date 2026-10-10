@@ -99,7 +99,7 @@ Because the output is plain SVG text with no DOM use, it can be run and checked 
 
 ## Styling
 
-`styles.css` is the LATCH design system: a light, matte, square cornered palette with hard offset shadows, using Chakra Petch and IBM Plex Mono. `css/style.css` only adds app layout on top of its tokens.
+`styles.css` is the LATCH design system: a light, matte, square cornered palette with hard offset shadows, using Chakra Petch and IBM Plex Mono. `css/style.css` only adds app layout on top of its tokens. The fonts are self-hosted in `fonts/` (SIL Open Font License, texts included), so the app makes no third party requests.
 
 ## Disclaimer and safety
 

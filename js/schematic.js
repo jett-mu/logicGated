@@ -3,6 +3,17 @@
 import { buildCell, TECHS } from './cells.js';
 import { shift } from './symbols.js';
 
+export const DISCLAIMER = 'Educational use only. Provided "as is", without warranty of any kind. Not verified or checked against real component ratings, and has no protection circuitry. Not for mains voltage, high current, batteries or any safety-critical use. Verify every design yourself before building. Use at your own risk; the author is not liable for injury, property damage or any other loss.';
+const FOOT_CH = 4.9, FOOT_LH = 11;      // 8px monospace advance, line height
+export function disclaimerFooter(width) {
+  const per = Math.max(20, Math.floor((width - 20) / FOOT_CH)), lines = [];
+  let cur = '';
+  for (const w of DISCLAIMER.split(' ')) {
+    if (cur && (cur + ' ' + w).length > per) { lines.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w;
+  }
+  if (cur) lines.push(cur);
+  return { lines, height: 10 + lines.length * FOOT_LH, lh: FOOT_LH };
+}
 export const HOP_R = 5;                 // hop-over arc radius
 export const MIN_GAP = 3 * HOP_R;       // 1.5 x the hop diameter: closest two wires may run
 const TRACK = MIN_GAP + 1, CH_PAD = 36, ROW_GAP = 36, MARGIN = 50, TERM_W = 90, TERM_H = 24;
@@ -271,10 +282,11 @@ export function renderSchematic(nl, tech = 'cmos', opts = {}) {
   const mos = L.nodes.reduce((a, n) => a + (n.mos ?? 0), 0), bjt = L.nodes.reduce((a, n) => a + (n.bjt ?? 0), 0);
   const res = L.nodes.reduce((a, n) => a + (n.res ?? 0), 0);
   const cols = [['TECHNOLOGY', TECHS[tech].label, 160], ['TRANSISTORS', String(mos + bjt), 110], ...(tech === 'bjt' ? [['RESISTORS', String(res), 100]] : []), ['STAGES', String(nl.stages.length), 80], ['DATE', opts.date ?? new Date().toISOString().slice(0, 10), 100]];
-  const tbW = cols.reduce((a, c) => a + c[2], 0), tbH = 84;
-  const W = Math.max(L.width, tbW + 60), H = L.height + tbH;
+  const tbW = cols.reduce((a, c) => a + c[2], 0), tbH = 66;
+  const W = Math.max(L.width, tbW + 60);
+  const foot = disclaimerFooter(W - 20), H = L.height + tbH + foot.height;
   const title = opts.title ?? 'GATEWRIGHT — TRANSISTOR-LEVEL SCHEMATIC';
-  const tx = W - 10 - tbW, ty = H - 10 - tbH;
+  const tx = W - 10 - tbW, ty = H - 10 - foot.height - tbH, fy = H - 10 - foot.height;
   let cx = tx, cells = '';
   for (const [label, value, w] of cols) {
     if (cx > tx) cells += `<line x1="${cx}" y1="${ty + 26}" x2="${cx}" y2="${ty + tbH}" stroke="#111827"/>\n`;
@@ -290,8 +302,8 @@ ${prims.map(primToSvg).join('\n')}
 <line x1="${tx}" y1="${ty + 26}" x2="${tx + tbW}" y2="${ty + 26}" stroke="#111827"/>
 <line x1="${tx}" y1="${ty + 44}" x2="${tx + tbW}" y2="${ty + 44}" stroke="#9ca3af"/>
 <text class="t b" x="${tx + 10}" y="${ty + 18}" font-weight="700">${esc(title)}</text>
-<line x1="${tx}" y1="${ty + 66}" x2="${tx + tbW}" y2="${ty + 66}" stroke="#9ca3af"/>
-<text class="t" x="${tx + 10}" y="${ty + 79}" fill="#6b7280" font-size="8">EDUCATIONAL USE ONLY · NO WARRANTY · VERIFY BEFORE BUILDING · NOT FOR MAINS OR SAFETY-CRITICAL USE</text>
+<line x1="10" y1="${fy}" x2="${W - 10}" y2="${fy}" stroke="#111827"/>
+${foot.lines.map((ln, i) => `<text x="20" y="${fy + 14 + i * foot.lh}" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="8" fill="#6b7280">${esc(ln)}</text>`).join('\n')}
 ${cells}</svg>`;
   return { svg, width: W, height: H, segs: L.segs, hops: wires.hops, transistors: mos + bjt, stages: nl.stages.length };
 }
